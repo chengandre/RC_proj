@@ -155,6 +155,28 @@ int handleUDPRequest(int request, vector<string> arguments) {
     return -1;
 }
 
+int sendReceiveTCPRequest(string message, int size) {
+    
+}
+
+int handleTCPRequest(int request, vector<string> inputs) {
+    int n;
+    string message;
+    switch (request) {
+        case OPEN:
+            break;
+        case CLOSE:
+            break;
+        case SHOW_ASSET:
+            break;
+        case BID:
+            break;
+        default:
+            cout << "Not possible" << endl;
+            break;
+    }
+}
+
 int handleTCPRequest(int request, vector<string> arguments) {
     return 0;
 }
