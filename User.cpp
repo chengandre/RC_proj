@@ -155,7 +155,24 @@ int handleUDPRequest(int request, vector<string> arguments) {
 }
 
 int sendReceiveTCPRequest(string message, int size) {
+    fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd_tcp == -1) {
+        return fd_tcp;
+    }
 
+    n_tcp = connect(fd_tcp, res->ai_addr, res->ai_addrlen);
+    if (n_tcp == -1) {
+        return fd_tcp;
+    }
+
+    n_tcp = write(fd_tcp, message.c_str(), size);
+    if (n_tcp == -1) {
+        return n_tcp;
+    }
+
+    n_tcp = read(fd_tcp, buffer, BUFFERSIZE);
+    
+    return n_tcp;
 }
 
 int handleTCPRequest(int request, vector<string> inputs) {
@@ -204,12 +221,6 @@ int main(int argc, char *argv[]) {
             port = argv[4];
 
         }
-    }
-
-    
-    fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd_tcp == -1) {
-        exit(1);
     }
 
     fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
