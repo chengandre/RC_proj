@@ -1,7 +1,7 @@
 // handle signal child
 // remove exit(1)
 #include "User.hpp"
-
+#include <algorithm>
 using namespace std;
 
 int fd_tcp, fd_udp, errcode;
