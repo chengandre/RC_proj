@@ -1,6 +1,5 @@
 // handle signal child
 // remove exit(1)
-// while to send and receive messages through socket, so that \sum n = n_total;
 #include "User.hpp"
 using namespace std;
 
@@ -13,7 +12,6 @@ string hostname, port, ip, input;
 char buffer[BUFFERSIZE];
 vector<string> inputs, userInfo;
 bool loggedIn = false;
-// vector<string> linUIDs; // keep record of the logged in users
 
 void parseInput(string &input, vector<string> &inputs) {
     inputs.clear();
@@ -25,7 +23,6 @@ void parseInput(string &input, vector<string> &inputs) {
         inputs.push_back(tmp);
     }
 }
-
 
 int checkUID(string &uid) {
     // 6 digitos
@@ -307,6 +304,14 @@ int main(int argc, char *argv[]) {
         } else if (request >= 8) {
             handleTCPRequest(request, inputs);
         } else if (request == 0) {
+            if (loggedIn) {
+                vector<string> inputs;
+                inputs.push_back(" ");
+                inputs.push_back(userInfo[0]);
+                inputs.push_back(userInfo[1]);
+                handleUDPRequest(LOGOUT, inputs);
+            }
+            return EXIT_SUCCESS;
             // exit request; check if logged in, logout if so
         } else {
             cout << "No such request\n";
