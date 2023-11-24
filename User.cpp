@@ -1,7 +1,6 @@
 // handle signal child
 // remove exit(1)
 #include "User.hpp"
-#include <algorithm>
 using namespace std;
 
 int fd_tcp, fd_udp, errcode;
@@ -156,7 +155,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
 }
 
 int sendReceiveTCPRequest(string message, int size) {
-    
+
 }
 
 int handleTCPRequest(int request, vector<string> inputs) {

@@ -10,6 +10,7 @@
 #include <vector>
 #include <string.h>
 #include <sstream>
+#include <algorithm>
 
 #define DEFAULT_HOSTNAME "loscalhost"
 #define DEFAULT_PORT "58123" //don't know...
