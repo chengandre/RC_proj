@@ -106,6 +106,10 @@ int handleUDPRequest(int request, vector<string> arguments) {
             }
             break;
         case LOGOUT:
+            if (!loggedIn) {
+                cout << "User not logged in\n";
+                return 0;
+            }
             if (checkUID(arguments[1]) && checkPassword(arguments[2])) {
                 message = "LOU " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
