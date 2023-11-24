@@ -26,6 +26,7 @@ void parseInput(string &input, vector<string> &inputs) {
     }
 }
 
+
 int checkUID(string &uid) {
     // 6 digitos
     return all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6;
@@ -38,6 +39,18 @@ int checkPassword(string &pw) {
 
 int checkAID(string &aid) {
     return all_of(aid.begin(), aid.end(), ::isdigit) && aid.length() == 3;
+}
+
+int checkName(string &name) {
+    return all_of(name.begin(), name.end(), ::isalnum) && name.length() <= 10;
+}
+
+int checkPrice(string &price) {
+    return all_of(price.begin(), price.end(), ::isdigit);
+}
+
+int checkTime(string &time) {
+    return all_of(time.begin(), time.end(), ::isdigit);
 }
 
 int parseCommand(string &command) {
@@ -214,10 +227,17 @@ int handleTCPRequest(int request, vector<string> inputs) {
             n = sendReceiveTCPRequest(message, message.length());
             break;
         case CLOSE:
+            message = "CLS" + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + "\n";
+            n = sendReceiveTCPRequest(message, message.length());
             break;
         case SHOW_ASSET:
+            message =  "SAS " + inputs[1] + "\n";
+            n = sendReceiveTCPRequest(message, message.length());
+            // save the image 
             break;
         case BID:
+            message = "BID " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " " + inputs[2] + "\n";
+            n = sendReceiveTCPRequest(message, message.length());
             break;
         default:
             cout << "Not possible" << endl;
