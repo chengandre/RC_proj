@@ -206,7 +206,7 @@ int handleTCPRequest(int request, vector<string> inputs) {
         case OPEN:
             // open name asset_fname start_value timeactive
             message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " ";
-            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " " + openJPG(inputs[2]);
+            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " " + openJPG(inputs[2]) + endl;
             n = sendReceiveTCPRequest(message, message.length());
             break;
         case CLOSE:
