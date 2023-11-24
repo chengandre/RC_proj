@@ -1,5 +1,6 @@
 // handle signal child
 // remove exit(1)
+// while to send and receive messages through socket, so that \sum n = n_total;
 #include "User.hpp"
 using namespace std;
 
@@ -10,7 +11,8 @@ struct addrinfo hints, *res;
 struct sockaddr_in addr;
 string hostname, port, ip, input;
 char buffer[BUFFERSIZE];
-vector<string> inputs;
+vector<string> inputs, userInfo;
+bool loggedIn = false;
 // vector<string> linUIDs; // keep record of the logged in users
 
 void parseInput(string &input, vector<string> &inputs) {
@@ -89,6 +91,14 @@ int handleUDPRequest(int request, vector<string> arguments) {
             if (checkUID(arguments[1]) && checkPassword(arguments[2])) {
                 message = "LIN " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
+                vector<string> response;
+                string tmp_buffer;
+                parseInput(tmp_buffer, response);
+                if (response[1] == "OK") {
+                    loggedIn = true;
+                    userInfo.push_back(arguments[1]);
+                    userInfo.push_back(arguments[2]);
+                }
                 cout << buffer;
                 // check if logged in successfully, if so change bool
             } else {
@@ -180,6 +190,10 @@ int handleTCPRequest(int request, vector<string> inputs) {
     string message;
     switch (request) {
         case OPEN:
+            // open name asset_fname start_value timeactive
+            message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " ";
+            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " ";
+            
             break;
         case CLOSE:
             break;
