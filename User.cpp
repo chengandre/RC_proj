@@ -1,5 +1,6 @@
 // handle signal child
 // remove exit(1)
+// increase buffer so we can read images or when listing auctions
 #include "User.hpp"
 using namespace std;
 
@@ -14,6 +15,17 @@ vector<string> inputs, userInfo;
 bool loggedIn = false;
 
 void parseInput(string &input, vector<string> &inputs) {
+    inputs.clear();
+
+    istringstream stream(input);
+    string tmp;
+
+    while (stream >> tmp) {
+        inputs.push_back(tmp);
+    }
+}
+
+void parseInput(char *input, vector<string> &inputs) {
     inputs.clear();
 
     istringstream stream(input);
@@ -85,15 +97,21 @@ int sendReceiveUDPRequest(string message, int size) {
     int n;
     n = sendto(fd_udp, message.c_str(), size, 0, res->ai_addr, res->ai_addrlen);
     if (n == -1) {
+        cout << "UDP send error" << endl;
         return n;
     }
     addrlen = sizeof(addrlen);
     n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
+    if (n == -1) {
+        cout << "UDP receive error" << endl;
+    }
     return n;
+    // return number of bytes read
 }
 
 int handleUDPRequest(int request, vector<string> arguments) {
     int n;
+    vector<string> response;
     string message;
     switch (request) {
         case LOGIN:
@@ -101,15 +119,19 @@ int handleUDPRequest(int request, vector<string> arguments) {
                 message = "LIN " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
 
-                vector<string> response;
-                string tmp_buffer(buffer);
-                parseInput(tmp_buffer, response);
+                parseInput(buffer, response);
                 if (response[1] == "OK") {
                     loggedIn = true;
                     userInfo.push_back(arguments[1]);
                     userInfo.push_back(arguments[2]);
+                    cout << "Logged in successfully" << endl;
                 }
-                // check if logged in successfully, if so change bool
+                else if (response[1] == "NOK") {
+                    cout << "Incorrect password" << endl;
+                }
+                else if (response[1] == "REG") {
+                    cout << "New User registered" << endl;
+                }
                 return 0; // dunno what else to return
             } else {
                 cout << "Syntax error" << endl;
@@ -117,13 +139,23 @@ int handleUDPRequest(int request, vector<string> arguments) {
             break;
         case LOGOUT:
             if (!loggedIn) {
-                cout << "User not logged in\n";
+                cout << "User not logged in" << endl;
                 return 0;
             }
             if (checkUID(arguments[1]) && checkPassword(arguments[2])) {
                 message = "LOU " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
-                cout << buffer;
+                
+                parseInput(buffer, response);
+                if (response[1] == "OK") {
+                    userInfo.clear();
+                    loggedIn = false;
+                    cout << "Logged out successfully" << endl;
+                } else if (response[1] == "NOK") {
+                    cout << "User not logged in" << endl;
+                } else if (response[1] == "UNR") {
+                    cout << "User is not registered" << endl;
+                }
             } else {
                 cout << "Syntax error" << endl;
             }
@@ -132,12 +164,20 @@ int handleUDPRequest(int request, vector<string> arguments) {
             if (checkUID(arguments[1]) && checkPassword(arguments[2])) {
                 message = "UNR " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
-                cout << buffer;
+                
+                parseInput(buffer, response);
+                if (response[1] == "OK") {
+                    userInfo.clear();
+                    loggedIn = false;
+                    cout << "User registered successfully" << endl;
+                } else if (response[1] == "NOK") {
+                    cout << "User not logged in" << endl;
+                } else if (response[1] == "UNR") {
+                    cout << "User not registered" << endl;
+                }
             } else {
                 cout << "Syntax error" << endl;
             }
-            break;
-        case EXIT:
             break;
         case MYAUCTIONS:
             if (checkUID(arguments[1])) {
@@ -175,6 +215,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
             cout << "Not possible from UDP" << endl;
             break;
     }
+    
     return -1;
 }
 
