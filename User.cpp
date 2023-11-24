@@ -77,7 +77,6 @@ int sendReceiveUDPRequest(string message, int size) {
     if (n == -1) {
         return n;
     }
-
     addrlen = sizeof(addrlen);
     n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
     return n;
@@ -91,16 +90,17 @@ int handleUDPRequest(int request, vector<string> arguments) {
             if (checkUID(arguments[1]) && checkPassword(arguments[2])) {
                 message = "LIN " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
+
                 vector<string> response;
-                string tmp_buffer;
+                string tmp_buffer(buffer);
                 parseInput(tmp_buffer, response);
                 if (response[1] == "OK") {
                     loggedIn = true;
                     userInfo.push_back(arguments[1]);
                     userInfo.push_back(arguments[2]);
                 }
-                cout << buffer;
                 // check if logged in successfully, if so change bool
+                return 0; // dunno what else to return
             } else {
                 cout << "Syntax error" << endl;
             }
@@ -206,7 +206,7 @@ int handleTCPRequest(int request, vector<string> inputs) {
         case OPEN:
             // open name asset_fname start_value timeactive
             message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " ";
-            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " " + openJPG(inputs[2]) + endl;
+            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " " + openJPG(inputs[2]) + "\n";
             n = sendReceiveTCPRequest(message, message.length());
             break;
         case CLOSE:
@@ -219,10 +219,7 @@ int handleTCPRequest(int request, vector<string> inputs) {
             cout << "Not possible" << endl;
             break;
     }
-}
-
-int handleTCPRequest(int request, vector<string> arguments) {
-    return 0;
+    return n;
 }
 
 int main(int argc, char *argv[]) {
