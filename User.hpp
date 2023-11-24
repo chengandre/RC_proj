@@ -13,8 +13,8 @@
 #include <algorithm>
 #include <fstream>
 
-#define DEFAULT_HOSTNAME "loscalhost"
-#define DEFAULT_PORT "58123" //don't know...
+#define DEFAULT_HOSTNAME "localhost"
+#define DEFAULT_PORT "58030"
 #define BUFFERSIZE 128
 
 enum {

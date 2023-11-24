@@ -100,7 +100,11 @@ int sendReceiveUDPRequest(string message, int size) {
         cout << "UDP send error" << endl;
         return n;
     }
+
     addrlen = sizeof(addrlen);
+    // while (n > 0) {
+        // keep reading
+    // }
     n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
     if (n == -1) {
         cout << "UDP receive error" << endl;
@@ -295,18 +299,18 @@ int handleTCPRequest(int request, vector<string> inputs) {
 int main(int argc, char *argv[]) {
     switch(argc){
         case(1):{
-            hostname=DEFAULT_HOSTNAME;
+            hostname = DEFAULT_HOSTNAME;
             port = DEFAULT_PORT;
             break;
         }
         case(3):{
             if (!strcmp(argv[1],"-p")){
-                hostname=DEFAULT_HOSTNAME;
-                port= argv[2];
+                hostname = DEFAULT_HOSTNAME;
+                port = argv[2];
 
             }
             else{
-                hostname= argv[2];
+                hostname = argv[2];
                 port = DEFAULT_PORT;
             }
             break;
