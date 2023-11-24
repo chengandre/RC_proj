@@ -192,18 +192,21 @@ int sendReceiveTCPRequest(string message, int size) {
         return fd_tcp;
     }
 
-    ssize_t total = 0;
-    ssize_t sent;
-    while (sent < size) {
-        sent = write(fd_tcp, message.c_str() + total, size - total);
-        if (sent == -1) {
-            return sent; // error
-        }
+    n_tcp = write(fd_tcp, message.c_str(), size);
+    if (n_tcp == -1) exit(1);
 
-        total += sent;
-    }
+    // ssize_t total = 0;
+    // ssize_t sent;
+    // while (sent < size) {
+    //     sent = write(fd_tcp, message.c_str() + total, size - total);
+    //     if (sent == -1) {
+    //         return sent; // error
+    //     }
 
-    n_tcp = read(fd_tcp, buffer, BUFFERSIZE);
+    //     total += sent;
+    // }
+
+    int n = read(fd_tcp, buffer, BUFFERSIZE);
     
     return n_tcp;
 }
@@ -212,18 +215,23 @@ string openJPG(string fname) {
     ifstream fin(fname, ios::binary);
     ostringstream oss;
     oss << fin.rdbuf();
-    string data(oss.str());
-    return data;
+    return oss.str();
 }
 
 int handleTCPRequest(int request, vector<string> inputs) {
+    cout << "Handling TCP Request" << endl;
     int n;
-    string message;
+    string message, tmp;
     switch (request) {
         case OPEN:
             // open name asset_fname start_value timeactive
+            userInfo.push_back("123456");
+            userInfo.push_back("12345678");
             message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " ";
-            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " " + openJPG(inputs[2]) + "\n";
+            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " ";
+            tmp = openJPG(inputs[2]);
+            message += to_string(tmp.size()) + " ";
+            message += openJPG(inputs[2]) + "\n";
             n = sendReceiveTCPRequest(message, message.length());
             break;
         case CLOSE:
