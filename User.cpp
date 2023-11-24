@@ -175,14 +175,28 @@ int sendReceiveTCPRequest(string message, int size) {
         return fd_tcp;
     }
 
-    n_tcp = write(fd_tcp, message.c_str(), size);
-    if (n_tcp == -1) {
-        return n_tcp;
+    ssize_t total = 0;
+    ssize_t sent;
+    while (sent < size) {
+        sent = write(fd_tcp, message.c_str() + total, size - total);
+        if (sent == -1) {
+            return sent; // error
+        }
+
+        total += sent;
     }
 
     n_tcp = read(fd_tcp, buffer, BUFFERSIZE);
     
     return n_tcp;
+}
+
+string openJPG(string fname) {
+    ifstream fin(fname, ios::binary);
+    ostringstream oss;
+    oss << fin.rdbuf();
+    string data(oss.str());
+    return data;
 }
 
 int handleTCPRequest(int request, vector<string> inputs) {
@@ -192,8 +206,8 @@ int handleTCPRequest(int request, vector<string> inputs) {
         case OPEN:
             // open name asset_fname start_value timeactive
             message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " ";
-            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " ";
-            
+            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " " + openJPG(inputs[2]);
+            n = sendReceiveTCPRequest(message, message.length());
             break;
         case CLOSE:
             break;

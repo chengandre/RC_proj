@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sstream>
 #include <algorithm>
+#include <fstream>
 
 #define DEFAULT_HOSTNAME "loscalhost"
 #define DEFAULT_PORT "58123" //don't know...
