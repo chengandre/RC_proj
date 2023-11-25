@@ -203,7 +203,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
 
                 parseInput(all_response, response);
                 if (response[1] == "NOK") {
-                    cout << "User has no ongoing bids" << endl;
+                    cout << "User has no ongoing auctions" << endl;
                 } else if (response[1] == "NLG") {
                     cout << "User not logged in" << endl;
                 } else if (response[1] == "OK") {
@@ -225,7 +225,23 @@ int handleUDPRequest(int request, vector<string> arguments) {
             if (checkUID(arguments[1])) {
                 message = "LMB " + arguments[1] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
-                cout << all_response;
+                
+                parseInput(all_response, response);
+                if (response[1] == "NOK") {
+                    cout << "User has no ongoing bids" << endl;
+                } else if (response[1] == "NLG") {
+                    cout << "User not logged in" << endl;
+                } else if (response[1] == "OK") {
+                    cout << "Listing auctions from user " << arguments[1] << " in which has bidded:" << endl;
+                    for (int i = 2; i < response.size() - 1; i += 2) {
+                        cout << "Auction " << response[i] << " ";
+                        if (response[i+1] == "0") {
+                            cout << "Ended" << endl;
+                        } else {
+                            cout << "Ongoing" << endl;
+                        }
+                    }
+                }
             } else {
                 cout << "Syntax error" << endl;
             }
@@ -233,7 +249,21 @@ int handleUDPRequest(int request, vector<string> arguments) {
         case LIST:
             message = "LST\n";
             n = sendReceiveUDPRequest(message, message.length());
-            cout << all_response;
+            
+            parseInput(all_response, response);
+            if (response[1] == "NOK") {
+                cout << "No auctions have been started yet" << endl;
+            } else if (response[1] == "OK") {
+                cout << "Listing all auctions:" << endl;
+                for (int i = 2; i < response.size() - 1; i += 2) {
+                    cout << "Auction " << response[i] << " ";
+                    if (response[i+1] == "0") {
+                        cout << "Ended" << endl;
+                    } else {
+                        cout << "Ongoing" << endl;
+                    }
+                }
+            }
             break;
         case SHOW_RECORD:
             if (checkAID(arguments[1])) {
