@@ -341,9 +341,38 @@ int sendReceiveTCPRequest(string message, int size) {
         return fd_tcp;
     }
 
-    n_tcp = write(fd_tcp, message.c_str(), size);
-    if (n_tcp == -1) exit(1);
+    // n_tcp = write(fd_tcp, message.c_str(), size);
+    // if (n_tcp == -1) exit(1);
 
+    
+    int total_sent = 0;
+    int n;
+    while (total_sent < size) {
+        n = write(fd_tcp, message.c_str() + total_sent, size - total_sent);
+        if (n == -1) {
+            cout << "TCP send error" << endl;
+            return n;
+        }
+        total_sent += n;
+    }
+
+    int total_received = 0;
+    all_response.clear();
+    n = BUFFERSIZE;
+    while (n == BUFFERSIZE) {
+        n = read(fd_tcp, buffer, BUFFERSIZE);
+        if (n == -1) {
+            cout << "TCP receive error" << endl;
+            break;
+        }
+        string tmp(buffer);
+        all_response += tmp;
+        total_received += n;
+    }
+
+    // int n = read(fd_tcp, buffer, BUFFERSIZE);
+    
+    return total_received;
     // ssize_t total = 0;
     // ssize_t sent;
     // while (sent < size) {
@@ -354,10 +383,6 @@ int sendReceiveTCPRequest(string message, int size) {
 
     //     total += sent;
     // }
-
-    int n = read(fd_tcp, buffer, BUFFERSIZE);
-    
-    return n_tcp;
 }
 
 string openJPG(string fname) {
@@ -367,13 +392,38 @@ string openJPG(string fname) {
     return oss.str();
 }
 
+void saveJPG(string &data, string &fname) {
+    std::ofstream fout(fname, std::ios::binary);
+    fout.write(data.c_str(), data.size());
+    fout.close();
+}
+
+int indexSpace(int n, string &s){
+    int count = 0;
+    int i = 0;
+    while (count < n && i < s.size()) {
+        if (s[i] == ' ') {
+            count++;
+        }
+        i++;
+    }
+    if (i == s.size()) {
+        return -1;
+    }
+    return i;
+}
+
 int handleTCPRequest(int request, vector<string> inputs) {
     cout << "Handling TCP Request" << endl;
     int n;
     string message, tmp;
+    vector<string> response;
     switch (request) {
         case OPEN:
             // open name asset_fname start_value timeactive
+            if (!loggedIn) {
+                cout << "User not logged in" << endl;
+            }
             userInfo.push_back("123456");
             userInfo.push_back("12345678");
             message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " ";
@@ -382,19 +432,74 @@ int handleTCPRequest(int request, vector<string> inputs) {
             message += to_string(tmp.size()) + " ";
             message += openJPG(inputs[2]) + "\n";
             n = sendReceiveTCPRequest(message, message.length());
+
+            parseInput(all_response, response);
+            if (response[1] == "NOK") {
+                cout << "Auction could not be started" << endl;
+            } else if (response[1] == "NLG") {
+                cout << "User not logged in" << endl;
+            } else if (response[1] == "OK") {
+                cout << "Auction created with AID " << response[2] << endl;
+            }
             break;
         case CLOSE:
+            if (!loggedIn) {
+                cout << "User not logged in" << endl;
+            }
             message = "CLS" + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + "\n";
             n = sendReceiveTCPRequest(message, message.length());
+
+            parseInput(all_response, response);
+            if (response[1] == "OK") {
+                cout << "Auction created by the user has now been closed" << endl;
+            } else if (response[1] == "NLG") {
+                cout << "User not logged in" << endl;
+            } else if (response[1] == "EAU") {
+                cout << "No auction with such AID" << endl;
+            } else if (response[1] == "EOW") {
+                cout << "User not the owner of auction" << endl;
+            } else if (response[1] == "END") {
+                cout << "Auction has already been closed" << endl;
+            }
             break;
         case SHOW_ASSET:
             message =  "SAS " + inputs[1] + "\n";
             n = sendReceiveTCPRequest(message, message.length());
             // save the image 
+
+            tmp = all_response.substr(0, 7);
+            parseInput(tmp, response);
+            if (response[1] == "NOK") {
+                cout << "Error showing asset" << endl;
+            } else if (response[1] == "OK") {
+                tmp.clear();
+                int space_index = indexSpace(4, all_response);
+                tmp = all_response.substr(0, space_index); // get first 4 inputs
+                parseInput(tmp, response);
+                
+                ssize_t fsize;
+                stringstream stream(response[3]); // turn size into int
+                stream >> fsize;
+
+                tmp.clear();
+                tmp = all_response.substr(space_index + 1, fsize); // get the part of the string that is the jpg
+                saveJPG(tmp, response[2]); // save the data into fname
+            }
             break;
         case BID:
             message = "BID " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " " + inputs[2] + "\n";
             n = sendReceiveTCPRequest(message, message.length());
+
+            parseInput(all_response, response);
+            if (response[1] == "NOK") {
+                cout << "Given auction is not active" << endl;
+            } else if (response[1] == "ACC") {
+                cout << "Bid has been accepted" << endl;
+            } else if (response[1] == "REF") {
+                cout << "Bid has been refused" << endl;
+            } else if (response[1] == "ILG") {
+                cout << "Cannot bid in an auction hosted by the user" << endl;
+            }  
             break;
         default:
             cout << "Not possible" << endl;
