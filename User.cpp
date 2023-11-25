@@ -269,7 +269,43 @@ int handleUDPRequest(int request, vector<string> arguments) {
             if (checkAID(arguments[1])) {
                 message = "SRC " + arguments[1] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
-                cout << all_response;
+                
+                parseInput(all_response, response);
+                if (response[1] == "NOK") {
+                    cout << "No auction has such AID" << endl;
+                } else if (response[1] == "OK") {
+                    cout << "Auction " << arguments[1] << " was started by the user " << response[2] << "." << endl;
+                    cout << "Auction name: " << response[3] << endl;
+                    cout << "Item name: " << response[4] << endl;
+                    cout << "Image name: " << response[5] << endl;
+                    cout << "Starting price: " << response[6] << endl;
+                    cout << "Start date: " << response[7] << endl;
+                    cout << "Time since start: " << response[8] << endl;
+                    
+                    int index = 8;
+                    bool end = false;
+                    bool bids = false;
+                    while (!end) {
+                        if (response.size() > index) {
+                            index++;
+                            if (response[++index] == "B") {
+                                if (!bids) {
+                                    cout << "Listing bids:" << endl;
+                                }
+                                bids = true;
+                                cout << "Bidder UID: " << response[++index] << endl;
+                                cout << "Bid value: " << response[++index] << end;
+                                cout << "Bid date: " << response[++index] << endl;
+                                cout << "Bid time: " << response[++index] << endl;
+                                cout << "Bid time relative to auction start: " << response[++index] << endl;
+                            }
+                            else if (response[++index] == "E") {
+                                cout << "Auction ended in " << response[++index] << " at " << response[++index] << endl;
+                                cout << "Auction duration: " << response[++index];
+                            }
+                        }
+                    }
+                }
             } else {
                 cout << "Syntax error" << endl;
             }
