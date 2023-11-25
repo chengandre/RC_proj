@@ -200,7 +200,23 @@ int handleUDPRequest(int request, vector<string> arguments) {
             if (checkUID(arguments[1])) {
                 message = "LMA " + arguments[1] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
-                cout << all_response;
+
+                parseInput(all_response, response);
+                if (response[1] == "NOK") {
+                    cout << "User has no ongoing bids" << endl;
+                } else if (response[1] == "NLG") {
+                    cout << "User not logged in" << endl;
+                } else if (response[1] == "OK") {
+                    cout << "Listing auctions from user " << arguments[1] << ":" << endl;
+                    for (int i = 2; i < response.size() - 1; i += 2) {
+                        cout << "Auction " << response[i] << " ";
+                        if (response[i+1] == "0") {
+                            cout << "Ended" << endl;
+                        } else {
+                            cout << "Ongoing" << endl;
+                        }
+                    }
+                }
             } else {
                 cout << "Syntax error" << endl;
             }
