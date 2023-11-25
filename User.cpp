@@ -102,13 +102,13 @@ int sendReceiveUDPRequest(string message, int size) {
         cout << "UDP send error" << endl;
         return n;
     }
-
     addrlen = sizeof(addrlen);
     // while (n > 0) {
         // keep reading
     // }
     all_response.clear();
-    while (n < BUFFERSIZE) {
+    n = BUFFERSIZE;
+    while (n == BUFFERSIZE) {
         n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n == -1) {
             cout << "UDP receive error" << endl;
