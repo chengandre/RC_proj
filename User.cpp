@@ -10,6 +10,7 @@ socklen_t addrlen;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
 string hostname, port, ip, input;
+string all_response;
 char buffer[BUFFERSIZE];
 vector<string> inputs, userInfo;
 bool loggedIn = false;
@@ -94,6 +95,7 @@ int parseCommand(string &command) {
 
 int sendReceiveUDPRequest(string message, int size) {
     // change to read more from server
+    int total = 0;
     int n;
     n = sendto(fd_udp, message.c_str(), size, 0, res->ai_addr, res->ai_addrlen);
     if (n == -1) {
@@ -105,11 +107,22 @@ int sendReceiveUDPRequest(string message, int size) {
     // while (n > 0) {
         // keep reading
     // }
-    n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
-    if (n == -1) {
-        cout << "UDP receive error" << endl;
+    all_response.clear();
+    while (n < BUFFERSIZE) {
+        n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
+        if (n == -1) {
+            cout << "UDP receive error" << endl;
+            break;
+        }
+        string tmp(buffer);
+        all_response += tmp;
+        total += n;
     }
-    return n;
+    // n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
+    // if (n == -1) {
+    //     cout << "UDP receive error" << endl;
+    // }
+    return total;
     // return number of bytes read
 }
 
@@ -123,7 +136,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
                 message = "LIN " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
 
-                parseInput(buffer, response);
+                parseInput(all_response, response);
                 if (response[1] == "OK") {
                     loggedIn = true;
                     userInfo.push_back(arguments[1]);
@@ -150,7 +163,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
                 message = "LOU " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
                 
-                parseInput(buffer, response);
+                parseInput(all_response, response);
                 if (response[1] == "OK") {
                     userInfo.clear();
                     loggedIn = false;
@@ -169,7 +182,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
                 message = "UNR " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
                 
-                parseInput(buffer, response);
+                parseInput(all_response, response);
                 if (response[1] == "OK") {
                     userInfo.clear();
                     loggedIn = false;
@@ -187,7 +200,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
             if (checkUID(arguments[1])) {
                 message = "LMA " + arguments[1] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
-                cout << buffer;
+                cout << all_response;
             } else {
                 cout << "Syntax error" << endl;
             }
@@ -196,7 +209,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
             if (checkUID(arguments[1])) {
                 message = "LMB " + arguments[1] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
-                cout << buffer;
+                cout << all_response;
             } else {
                 cout << "Syntax error" << endl;
             }
@@ -204,13 +217,13 @@ int handleUDPRequest(int request, vector<string> arguments) {
         case LIST:
             message = "LST\n";
             n = sendReceiveUDPRequest(message, message.length());
-            cout << buffer;
+            cout << all_response;
             break;
         case SHOW_RECORD:
             if (checkAID(arguments[1])) {
                 message = "SRC " + arguments[1] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
-                cout << buffer;
+                cout << all_response;
             } else {
                 cout << "Syntax error" << endl;
             }
@@ -330,8 +343,10 @@ int main(int argc, char *argv[]) {
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
+
     cout << hostname << '\n';
     cout << port << '\n';
+
     errcode = getaddrinfo(hostname.c_str(), port.c_str(), &hints, &res);
     if (errcode != 0) {
         cout << gai_strerror(errcode);
