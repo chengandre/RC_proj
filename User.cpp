@@ -95,17 +95,28 @@ int parseCommand(string &command) {
 
 int sendReceiveUDPRequest(string message, int size) {
     // change to read more from server
-    int total = 0;
+    int total_received = 0;
+    int total_sent = 0;
     int n;
-    n = sendto(fd_udp, message.c_str(), size, 0, res->ai_addr, res->ai_addrlen);
-    if (n == -1) {
-        cout << "UDP send error" << endl;
-        return n;
+    while (total_sent < size) {
+        n = sendto(fd_udp, message.c_str() + total_sent, size - total_sent, 0, res->ai_addr, res->ai_addrlen);
+        if (n == -1) {
+            cout << "UDP send error" << endl;
+            return n;
+        }
+        total_sent += n;
     }
-    addrlen = sizeof(addrlen);
+    // n = sendto(fd_udp, message.c_str(), size, 0, res->ai_addr, res->ai_addrlen);
+    // if (n == -1) {
+    //     cout << "UDP send error" << endl;
+    //     return n;
+    // }
+    
     // while (n > 0) {
         // keep reading
     // }
+
+    addrlen = sizeof(addrlen);
     all_response.clear();
     n = BUFFERSIZE;
     while (n == BUFFERSIZE) {
@@ -116,13 +127,13 @@ int sendReceiveUDPRequest(string message, int size) {
         }
         string tmp(buffer);
         all_response += tmp;
-        total += n;
+        total_received += n;
     }
     // n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
     // if (n == -1) {
     //     cout << "UDP receive error" << endl;
     // }
-    return total;
+    return total_received;
     // return number of bytes read
 }
 
@@ -300,7 +311,8 @@ int handleUDPRequest(int request, vector<string> arguments) {
                                 cout << "Bid time relative to auction start: " << response[++index] << endl;
                             }
                             else if (response[++index] == "E") {
-                                cout << "Auction ended in " << response[++index] << " at " << response[++index] << endl;
+                                cout << "Auction ended in " << response[++index] << " at ";
+                                cout << response[++index] << endl;
                                 cout << "Auction duration: " << response[++index];
                             }
                         }
