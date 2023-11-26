@@ -432,7 +432,11 @@ int sendReceiveTCPRequest(string message, int size) {
     // }
 }
 
-
+void printString(vector<string> &target) {
+    for (int i = 0; i < target.size(); i++) {
+        cout << target[i] << endl;
+    }
+}
 
 int handleTCPRequest(int request, vector<string> inputs) {
     cout << "Handling TCP Request" << endl;
@@ -499,7 +503,6 @@ int handleTCPRequest(int request, vector<string> inputs) {
                 tmp = getSubString(all_response, 0, space_index); // get first 4 inputs
                 //tmp = all_response.substr(0, space_index); // get first 4 inputs
                 parseInput(tmp, response);
-                
                 ssize_t fsize;
                 stringstream stream(response[3]); // turn size into int
                 stream >> fsize;
