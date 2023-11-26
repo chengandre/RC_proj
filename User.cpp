@@ -488,14 +488,16 @@ int handleTCPRequest(int request, vector<string> inputs) {
             n = sendReceiveTCPRequest(message, message.length());
             // save the image 
 
-            tmp = all_response.substr(0, 7);
+            tmp = getSubString(all_response, 0, 7);
+            // tmp = all_response.substr(0, 7);
             parseInput(tmp, response);
             if (response[1] == "NOK") {
                 cout << "Error showing asset" << endl;
             } else if (response[1] == "OK") {
                 tmp.clear();
                 int space_index = indexSpace(4, all_response);
-                tmp = all_response.substr(0, space_index); // get first 4 inputs
+                tmp = getSubString(all_response, 0, space_index); // get first 4 inputs
+                //tmp = all_response.substr(0, space_index); // get first 4 inputs
                 parseInput(tmp, response);
                 
                 ssize_t fsize;
