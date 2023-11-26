@@ -14,4 +14,4 @@
 #include <sstream>
 
 #define PORT "58030" //number of group:30
-#define BUFFERSIZE 128
+#define BUFFERSIZE 65535

@@ -3,3 +3,6 @@ User
 *.c
 ASSETS
 .DS_Store
+*.jpg
+*.txt
+*.png

@@ -415,11 +415,13 @@ int sendReceiveTCPRequest(string message, int size) {
     n = BUFFERSIZE;
     cout << "[LOG]: Receiving TCP response" << endl;
     while (n == BUFFERSIZE) {
+        sleep(3);
         n = read(fd_tcp, buffer, BUFFERSIZE);
         if (n == -1) {
             cout << "TCP receive error" << endl;
             break;
         }
+        cout << "[LOG]: tcp buffer received " << n << " bytes" << endl;
         concatenateString(all_response, buffer, n);
         total_received += n;
     }
@@ -437,6 +439,11 @@ int sendReceiveTCPRequest(string message, int size) {
 
     //     total += sent;
     // }
+
+    /* Divide this function into more, one being receiveTCPResponse(int fd, int bytes)
+    start by just reading the bytes necessary to know the response command and status,
+    in handletcprequest check status and ask to read more
+    this is an alternative to sleep(t)*/
 }
 
 void printString(vector<string> &target) {
@@ -510,6 +517,7 @@ int handleTCPRequest(int request, vector<string> inputs) {
                 tmp = getSubString(all_response, 0, space_index); // get first 4 inputs
                 //tmp = all_response.substr(0, space_index); // get first 4 inputs
                 parseInput(tmp, response);
+                printString(response);
                 ssize_t fsize;
                 stringstream stream(response[3]); // turn size into int
                 stream >> fsize;
