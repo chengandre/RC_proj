@@ -15,7 +15,7 @@
 
 #define DEFAULT_HOSTNAME "localhost"
 #define DEFAULT_PORT "58030"
-#define BUFFERSIZE 150
+#define BUFFERSIZE 65535
 
 enum {
     EXIT = 0,

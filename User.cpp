@@ -143,6 +143,7 @@ int sendReceiveUDPRequest(string message, int size) {
     int total_received = 0;
     int total_sent = 0;
     int n;
+    cout << "[LOG]: Sendting UDP request" << endl;
     while (total_sent < size) {
         n = sendto(fd_udp, message.c_str() + total_sent, size - total_sent, 0, res->ai_addr, res->ai_addrlen);
         if (n == -1) {
@@ -151,6 +152,7 @@ int sendReceiveUDPRequest(string message, int size) {
         }
         total_sent += n;
     }
+    cout << "[LOG]: Sent UDP request" << endl;
     // n = sendto(fd_udp, message.c_str(), size, 0, res->ai_addr, res->ai_addrlen);
     // if (n == -1) {
     //     cout << "UDP send error" << endl;
@@ -164,19 +166,20 @@ int sendReceiveUDPRequest(string message, int size) {
     addrlen = sizeof(addr);
     all_response.clear();
     n = BUFFERSIZE;
+    cout << "[LOG]: Receiving UDP response" << endl;
     while (n == BUFFERSIZE) {
         n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n == -1) {
             cout << "UDP receive error" << endl;
             break;
         }
-        string tmp(buffer);
-        all_response += tmp;
+        concatenateString(all_response, buffer, n);
         total_received += n;
         // for (int i = 0; i < BUFFERSIZE; i++){
         //     cout << i << "--" << buffer[i] << endl;
         // }
     }
+    cout << "[LOG]: Received UDP response of size " <<  all_response.size() << endl;
     // n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
     // if (n == -1) {
     //     cout << "UDP receive error" << endl;
@@ -363,7 +366,9 @@ int handleUDPRequest(int request, vector<string> arguments) {
                                 cout << "Auction duration: " << response[++index] << endl;
                             }
                         }
-                        end = true;
+                        else {
+                            end = true;
+                        }
                     }
                 }
             } else {
@@ -393,7 +398,7 @@ int sendReceiveTCPRequest(string message, int size) {
     // n_tcp = write(fd_tcp, message.c_str(), size);
     // if (n_tcp == -1) exit(1);
 
-    
+    cout << "[LOG]: Sending TCP request" << endl;
     int total_sent = 0;
     while (total_sent < size) {
         n = write(fd_tcp, message.c_str() + total_sent, size - total_sent);
@@ -403,10 +408,12 @@ int sendReceiveTCPRequest(string message, int size) {
         }
         total_sent += n;
     }
+    cout << "[LOG]: Sent TCP request" << endl;
 
     int total_received = 0;
     all_response.clear();
     n = BUFFERSIZE;
+    cout << "[LOG]: Receiving TCP response" << endl;
     while (n == BUFFERSIZE) {
         n = read(fd_tcp, buffer, BUFFERSIZE);
         if (n == -1) {
@@ -416,7 +423,7 @@ int sendReceiveTCPRequest(string message, int size) {
         concatenateString(all_response, buffer, n);
         total_received += n;
     }
-
+    cout << "[LOG]: Received TCP response of size " << total_received << endl;
     // int n = read(fd_tcp, buffer, BUFFERSIZE);
     
     return total_received;
