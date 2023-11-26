@@ -1,15 +1,13 @@
 // handle signal child
 // remove exit(1)
-// increase buffer so we can read images or when listing auctions
 #include "User.hpp"
 using namespace std;
 
-int fd_tcp, fd_udp, errcode;
-ssize_t n_tcp, n_udp;
+int fd_udp;
 socklen_t addrlen;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
-string hostname, port, ip, input;
+string hostname, port, input;
 string all_response;
 char buffer[BUFFERSIZE];
 vector<string> inputs, userInfo;
@@ -93,6 +91,53 @@ int parseCommand(string &command) {
     }
 }
 
+int indexSpace(int n_spaces, string &target){
+    // finds the index of the nth space
+    int count = 0;
+    int i = 0;
+    while (count < n_spaces && i < target.size()) {
+        if (target[i] == ' ') {
+            count++;
+        }
+        i++;
+    }
+    if (i == target.size()) {
+        return -1;
+    }
+    return i-1;
+}
+
+string getSubString(string &target, int start, int size) {
+    string tmp;
+    int i = start;
+    int j = 0;
+    while (j < size) {
+        tmp.push_back(target[start+j]);
+        j++;
+    }
+
+    return tmp;
+}
+
+void concatenateString(string &target, char item[], int size) {
+    for (int i = 0; i < size; i++) {
+        target.push_back(item[i]);
+    }
+}
+
+string openJPG(string fname) {
+    ifstream fin(fname, ios::binary);
+    ostringstream oss;
+    oss << fin.rdbuf();
+    return oss.str();
+}
+
+void saveJPG(string &data, string &fname) {
+    std::ofstream fout(fname, std::ios::binary);
+    fout.write(data.c_str(), data.size());
+    fout.close();
+}
+
 int sendReceiveUDPRequest(string message, int size) {
     // change to read more from server
     int total_received = 0;
@@ -116,7 +161,7 @@ int sendReceiveUDPRequest(string message, int size) {
         // keep reading
     // }
 
-    addrlen = sizeof(addrlen);
+    addrlen = sizeof(addr);
     all_response.clear();
     n = BUFFERSIZE;
     while (n == BUFFERSIZE) {
@@ -128,6 +173,9 @@ int sendReceiveUDPRequest(string message, int size) {
         string tmp(buffer);
         all_response += tmp;
         total_received += n;
+        // for (int i = 0; i < BUFFERSIZE; i++){
+        //     cout << i << "--" << buffer[i] << endl;
+        // }
     }
     // n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
     // if (n == -1) {
@@ -280,7 +328,6 @@ int handleUDPRequest(int request, vector<string> arguments) {
             if (checkAID(arguments[1])) {
                 message = "SRC " + arguments[1] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
-                
                 parseInput(all_response, response);
                 if (response[1] == "NOK") {
                     cout << "No auction has such AID" << endl;
@@ -292,30 +339,31 @@ int handleUDPRequest(int request, vector<string> arguments) {
                     cout << "Starting price: " << response[6] << endl;
                     cout << "Start date: " << response[7] << endl;
                     cout << "Time since start: " << response[8] << endl;
-                    
+
                     int index = 8;
                     bool end = false;
                     bool bids = false;
                     while (!end) {
                         if (response.size() > index) {
                             index++;
-                            if (response[++index] == "B") {
+                            if (response[index] == "B") {
                                 if (!bids) {
                                     cout << "Listing bids:" << endl;
                                 }
                                 bids = true;
                                 cout << "Bidder UID: " << response[++index] << endl;
-                                cout << "Bid value: " << response[++index] << end;
+                                cout << "Bid value: " << response[++index] << endl;
                                 cout << "Bid date: " << response[++index] << endl;
                                 cout << "Bid time: " << response[++index] << endl;
                                 cout << "Bid time relative to auction start: " << response[++index] << endl;
                             }
-                            else if (response[++index] == "E") {
+                            else if (response[index] == "E") {
                                 cout << "Auction ended in " << response[++index] << " at ";
                                 cout << response[++index] << endl;
-                                cout << "Auction duration: " << response[++index];
+                                cout << "Auction duration: " << response[++index] << endl;
                             }
                         }
+                        end = true;
                     }
                 }
             } else {
@@ -331,13 +379,14 @@ int handleUDPRequest(int request, vector<string> arguments) {
 }
 
 int sendReceiveTCPRequest(string message, int size) {
-    fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
+    int fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
     if (fd_tcp == -1) {
         return fd_tcp;
     }
 
-    n_tcp = connect(fd_tcp, res->ai_addr, res->ai_addrlen);
-    if (n_tcp == -1) {
+    int n;
+    n = connect(fd_tcp, res->ai_addr, res->ai_addrlen);
+    if (n == -1) {
         return fd_tcp;
     }
 
@@ -346,7 +395,6 @@ int sendReceiveTCPRequest(string message, int size) {
 
     
     int total_sent = 0;
-    int n;
     while (total_sent < size) {
         n = write(fd_tcp, message.c_str() + total_sent, size - total_sent);
         if (n == -1) {
@@ -365,8 +413,7 @@ int sendReceiveTCPRequest(string message, int size) {
             cout << "TCP receive error" << endl;
             break;
         }
-        string tmp(buffer);
-        all_response += tmp;
+        concatenateString(all_response, buffer, n);
         total_received += n;
     }
 
@@ -385,33 +432,7 @@ int sendReceiveTCPRequest(string message, int size) {
     // }
 }
 
-string openJPG(string fname) {
-    ifstream fin(fname, ios::binary);
-    ostringstream oss;
-    oss << fin.rdbuf();
-    return oss.str();
-}
 
-void saveJPG(string &data, string &fname) {
-    std::ofstream fout(fname, std::ios::binary);
-    fout.write(data.c_str(), data.size());
-    fout.close();
-}
-
-int indexSpace(int n, string &s){
-    int count = 0;
-    int i = 0;
-    while (count < n && i < s.size()) {
-        if (s[i] == ' ') {
-            count++;
-        }
-        i++;
-    }
-    if (i == s.size()) {
-        return -1;
-    }
-    return i;
-}
 
 int handleTCPRequest(int request, vector<string> inputs) {
     cout << "Handling TCP Request" << endl;
@@ -482,7 +503,7 @@ int handleTCPRequest(int request, vector<string> inputs) {
                 stream >> fsize;
 
                 tmp.clear();
-                tmp = all_response.substr(space_index + 1, fsize); // get the part of the string that is the jpg
+                tmp = getSubString(all_response, space_index+1, fsize); // get the image from response
                 saveJPG(tmp, response[2]); // save the data into fname
             }
             break;
@@ -546,7 +567,7 @@ int main(int argc, char *argv[]) {
     cout << hostname << '\n';
     cout << port << '\n';
 
-    errcode = getaddrinfo(hostname.c_str(), port.c_str(), &hints, &res);
+    int errcode = getaddrinfo(hostname.c_str(), port.c_str(), &hints, &res);
     if (errcode != 0) {
         cout << gai_strerror(errcode);
         exit(1);
