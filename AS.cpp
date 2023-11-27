@@ -11,10 +11,12 @@ string hostname, port, ip, input;
 char buffer[BUFFERSIZE];
 vector<string> inputs;
 bool verbose = false;
-
 int main(int argc, char *argv[]) {
 
     switch(argc) {
+        case 1:
+            port = DEFAULT_PORT;
+            break;
         case 3:
             port = argv[2];
             break;

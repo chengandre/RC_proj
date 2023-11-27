@@ -12,6 +12,5 @@
 #include <vector>
 #include <string.h>
 #include <sstream>
-
-#define PORT "58030" //number of group:30
+#define DEFAULT_PORT "58030" //number of group:30
 #define BUFFERSIZE 65535
