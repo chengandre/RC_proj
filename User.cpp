@@ -143,7 +143,7 @@ int sendReceiveUDPRequest(string message, int size) {
     int total_received = 0;
     int total_sent = 0;
     int n;
-    cout << "[LOG]: Sendting UDP request" << endl;
+    cout << "[LOG]: Sending UDP request" << endl;
     while (total_sent < size) {
         n = sendto(fd_udp, message.c_str() + total_sent, size - total_sent, 0, res->ai_addr, res->ai_addrlen);
         if (n == -1) {
