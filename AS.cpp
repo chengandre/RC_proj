@@ -11,6 +11,7 @@ string hostname, port, ip, input;
 char buffer[BUFFERSIZE];
 vector<string> inputs;
 bool verbose = false;
+int auction_number = 0;
 
 int parseCommand(string &command) {
     if (command == "LIN") {
@@ -148,7 +149,53 @@ int receiveTCPimage(int fd, int size, string &fname, pid_t pid) {
 }
 
 int sendTCPresponse(int fd, string &message, int size) {
+
+}
+
+bool checkLogin (string &uid) {
+    // checks if user is logged in
+    struct stat buffer;
+    string tmp = "USERS/" + uid + "/" + uid + "_login.txt";
+    return (stat (tmp.c_str(), &buffer) == 0); 
+}
+
+bool checkPassword(string &uid, string &pw) {
+    string fname = "USERS/" + uid + "/" + uid + "_password.txt";
+
+    ifstream pw_file;
+    pw_file.open(fname, ios::in);
     
+    ostringstream oss;
+    oss << pw_file.rdbuf();
+    return oss.str() == pw;
+}
+
+int createAuctionDir(string &aid) {
+    string AID_dirname = "AUCTIONS/" + aid;
+    string BIDS_dirname = "AUCTIONS/" + aid + "/BIDS";
+    int ret;
+
+    ret = mkdir(AID_dirname.c_str(), 0700);
+    if (ret == -1) {
+        cout << "Error mkdir" << endl;
+        return -1;
+    }
+
+    ret = mkdir(BIDS_dirname.c_str(), 0700);
+    if (ret == -1) {
+        rmdir(AID_dirname.c_str());
+        return -1;
+    }
+
+    return 1;
+}
+
+string getNextAID() {
+    char tmp[3];
+    sprintf(tmp, "%03d", auction_number);
+    string aid(tmp);
+    auction_number++;
+    return aid;
 }
 
 void handleTCPRequest(int &fd, pid_t &pid) {
@@ -168,9 +215,28 @@ void handleTCPRequest(int &fd, pid_t &pid) {
             ssize_t fsize;
             stringstream stream(request_arguments[6]);
             stream >> fsize;
+
+            bool ok = true;
+            if (!checkLogin(request_arguments[0])) {
+                // user not logged in
+                ok = false;
+            } else if (!checkPassword(request_arguments[0], request_arguments[1])) {
+                // incorrect password
+                ok = false;
+            } else {
+                // check if an auction has the same name?
+                // check name and other things' length
+                receiveTCPimage(fd, fsize, request_arguments[5], pid);
+            }
+
+            if (!ok) {
+
+            } else {
+
+            }
             // check user
             // and check arguments
-            receiveTCPimage(fd, fsize, request_arguments[5], pid);
+            
             // open auction
             // respond to client
             break;
