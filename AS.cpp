@@ -147,6 +147,10 @@ int receiveTCPimage(int fd, int size, string &fname, pid_t pid) {
     // receive image directly into file
 }
 
+int sendTCPresponse(int fd, string &message, int size) {
+    
+}
+
 void handleTCPRequest(int &fd, pid_t &pid) {
     string request,tmp;
     vector<string> request_arguments;
@@ -158,10 +162,19 @@ void handleTCPRequest(int &fd, pid_t &pid) {
     receiveTCPsize(fd, 1, tmp, pid); // clear space
     switch (request_type) {
         case OPEN:
+            {
             receiveTCPspace(fd, 7, request, pid);
             parseInput(request, request_arguments);
-            
+            ssize_t fsize;
+            stringstream stream(request_arguments[6]);
+            stream >> fsize;
+            // check user
+            // and check arguments
+            receiveTCPimage(fd, fsize, request_arguments[5], pid);
+            // open auction
+            // respond to client
             break;
+        }
         case CLOSE:
             break;
         case SHOW_ASSET:
