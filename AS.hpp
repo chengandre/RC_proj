@@ -1,5 +1,6 @@
-
 #include <csignal>
+#include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>

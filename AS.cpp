@@ -1,5 +1,6 @@
 #include "AS.hpp"
-
+// handle signal child
+// verify if ifstream ofstream have opened correctly
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child, errcode;
@@ -12,6 +13,9 @@ char buffer[BUFFERSIZE];
 vector<string> inputs;
 bool verbose = false;
 int auction_number = 0;
+time_t fulltime;
+struct tm *current_time;
+string current_time_str;
 
 int parseCommand(string &command) {
     if (command == "LIN") {
@@ -126,7 +130,7 @@ int receiveTCPspace(int fd, int size, string &response, pid_t pid) {
     int n;
     char tmp[128];
     response.clear();
-    cout << "[LOG]: " << pid << " Receiving TCP request" << endl;
+    cout << "[LOG]: " << pid << " Receiving TCP request by spaces" << endl;
     while (total_spaces < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -135,7 +139,7 @@ int receiveTCPspace(int fd, int size, string &response, pid_t pid) {
         }
         concatenateString(response, tmp, n);
         total_received += n;
-        if (buffer[0] == ' ') {
+        if (tmp[0] == ' ') {
             total_spaces++;
         }
     }
@@ -144,7 +148,27 @@ int receiveTCPspace(int fd, int size, string &response, pid_t pid) {
     return total_received;
 }
 
-int receiveTCPimage(int fd, int size, string &fname, pid_t pid) {
+int receiveTCPimage(int fd, int size, string &fname, string &aid, pid_t pid) {
+    int total_received = 0;
+    int n;
+    char tmp[128];
+    string dir = "AUCTIONS/" + aid + "/" + fname;
+    ofstream fout(dir, ios::binary);
+
+    while (total_received < size) {
+        n = read(fd, tmp, 128);
+        if (n == -1) {
+            cout << "TCP image receive error" << endl;
+            fout.close();
+            remove(fname.c_str());
+            return -1;
+        }
+        fout.write(tmp, n);
+        total_received += n;
+    }
+    cout << "[LOG]: " << pid << " Received file of size " << total_received << endl;
+    fout.close();
+    return total_received;
     // receive image directly into file
 }
 
@@ -190,6 +214,14 @@ int createAuctionDir(string &aid) {
     return 1;
 }
 
+void deleteAuctionDir(string &aid) {
+    string AID_dirname = "AUCTIONS/" + aid;
+    string BIDS_dirname = "AUCTIONS/" + aid + "/BIDS";
+
+    rmdir(AID_dirname.c_str());
+    rmdir(BIDS_dirname.c_str());
+}
+
 string getNextAID() {
     char tmp[3];
     sprintf(tmp, "%03d", auction_number);
@@ -198,8 +230,39 @@ string getNextAID() {
     return aid;
 }
 
+int createStartAuctionText(vector<string> &arguments, string &aid) {
+    string name, tmp;
+    char time_str[20]; // date and time
+
+    tmp = arguments[0] + " "; // UID
+    tmp += arguments[2] + " "; // Name
+    tmp += arguments[5] + " "; // fname
+    tmp += arguments[3] + " "; // start_value
+    tmp += arguments[4] + " "; // time active
+
+    time(&fulltime); // update time in seconds
+    current_time = gmtime(&fulltime);
+    sprintf(time_str,"%4d−%02d−%02d %02d:%02d:%02d",
+            current_time->tm_year + 1900, current_time->tm_mon + 1,current_time->tm_mday, 
+            current_time->tm_hour , current_time->tm_min , current_time->tm_sec);
+    tmp += time_str;
+    tmp += " ";
+    
+    stringstream ss;
+    ss << fulltime;
+    string ts = ss.str();
+    tmp += ts;
+
+    name = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
+    ofstream fout(name, ios::out);
+    fout.write(name.c_str(), name.size());
+    fout.close();
+
+    return 0;
+}
+
 void handleTCPRequest(int &fd, pid_t &pid) {
-    string request,tmp;
+    string request, tmp;
     vector<string> request_arguments;
     char buffer[BUFFERSIZE];
     int n, request_type;
@@ -220,19 +283,34 @@ void handleTCPRequest(int &fd, pid_t &pid) {
             if (!checkLogin(request_arguments[0])) {
                 // user not logged in
                 ok = false;
+                return; // maybe we can just return here
             } else if (!checkPassword(request_arguments[0], request_arguments[1])) {
                 // incorrect password
                 ok = false;
             } else {
                 // check if an auction has the same name?
                 // check name and other things' length
-                receiveTCPimage(fd, fsize, request_arguments[5], pid);
+                
             }
 
             if (!ok) {
 
             } else {
+                int status;
+                string aid = getNextAID();
+                status = createAuctionDir(aid);
+                if (status == -1) {
+                    break;
+                }
+                status = receiveTCPimage(fd, fsize, request_arguments[5], aid, pid);
+                if (status == -1) {
+                    deleteAuctionDir(aid); // adicionar loop ate confirmar sucesso?
+                    break;
+                }
+                status = createStartAuctionText(request_arguments, aid);
 
+
+                
             }
             // check user
             // and check arguments
