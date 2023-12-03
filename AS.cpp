@@ -80,6 +80,7 @@ void startUDP(void) {
         exit(1);
     }
 
+    cout << "[LOG]: UDP starting to read from socket" << endl;
     while (1) {
         addrlen = sizeof(addr);
         n_udp = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*) &addr, &addrlen);
@@ -172,8 +173,20 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid, pid_t pid) {
     // receive image directly into file
 }
 
-int sendTCPresponse(int fd, string &message, int size) {
-
+int sendTCPresponse(int fd, string &message, int size, pid_t &pid) {
+    cout << "[LOG]: " << pid << " Sending TCP responde" << endl;
+    int total_sent = 0;
+    int n;
+    while (total_sent < size) {
+        n = write(fd_tcp, message.c_str() + total_sent, size - total_sent);
+        if (n == -1) {
+            cout << "TCP send error" << endl;
+            return n;
+        }
+        total_sent += n;
+    }
+    cout << "[LOG]: Sent TCP request" << endl;
+    return total_sent;
 }
 
 bool checkLogin (string &uid) {
@@ -223,8 +236,8 @@ void deleteAuctionDir(string &aid) {
 }
 
 string getNextAID() {
-    char tmp[3];
-    sprintf(tmp, "%03d", auction_number);
+    char tmp[4];
+    snprintf(tmp, 4, "%03d", auction_number);
     string aid(tmp);
     auction_number++;
     return aid;
@@ -242,7 +255,7 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
 
     time(&fulltime); // update time in seconds
     current_time = gmtime(&fulltime);
-    sprintf(time_str,"%4d−%02d−%02d %02d:%02d:%02d",
+    snprintf(time_str, 20, "%4d−%02d−%02d %02d:%02d:%02d",
             current_time->tm_year + 1900, current_time->tm_mon + 1,current_time->tm_mday, 
             current_time->tm_hour , current_time->tm_min , current_time->tm_sec);
     tmp += time_str;
@@ -255,6 +268,10 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
 
     name = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
     ofstream fout(name, ios::out);
+    if (!fout) {
+        cout << "Error creating start auction text" << endl;
+        return -1;
+    }
     fout.write(name.c_str(), name.size());
     fout.close();
 
@@ -262,6 +279,7 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
 }
 
 void handleTCPRequest(int &fd, pid_t &pid) {
+    cout << "[LOG]: Got one request child " << pid << " handling it" << endl;
     string request, tmp;
     vector<string> request_arguments;
     char buffer[BUFFERSIZE];
@@ -294,8 +312,10 @@ void handleTCPRequest(int &fd, pid_t &pid) {
             }
 
             if (!ok) {
-
+                tmp = "ROA NOK\n";
+                sendTCPresponse(fd, tmp, tmp.size(), pid);
             } else {
+                // talvez pode-se remover a pasta com tds os ficheiros dentro dela
                 int status;
                 string aid = getNextAID();
                 status = createAuctionDir(aid);
@@ -308,10 +328,28 @@ void handleTCPRequest(int &fd, pid_t &pid) {
                     break;
                 }
                 status = createStartAuctionText(request_arguments, aid);
-
-
+                if (status == -1) {
+                    deleteAuctionDir(aid);
+                    string dir = "AUCTIONS/" + aid + "/" + request_arguments[5];
+                    remove(dir.c_str());
+                    break;
+                }
+                tmp = "USERS/" + request_arguments[0] + "/HOSTED/" + aid + ".txt"; // create hosted in user folder
+                ofstream fout(tmp);
+                if (!fout) {
+                    deleteAuctionDir(aid);
+                    string dir = "AUCTIONS/" + aid + "/" + request_arguments[5];
+                    remove(dir.c_str());
+                    dir = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
+                    remove(dir.c_str());
+                    break;
+                }
+                fout.close();
                 
+                tmp = "ROA OK " + aid + "\n";
+                sendTCPresponse(fd, tmp, tmp.size(), pid);
             }
+
             // check user
             // and check arguments
             
@@ -353,6 +391,7 @@ void startTCP(void) {
 
     while (1) {
         addrlen = sizeof(addr);
+        cout << "[LOG]: TCP parent starting to accept requests" << endl;
         if ( (tcp_child = accept(fd_tcp, (struct sockaddr*) &addr, &addrlen)) == -1) {
             cout << "TCP accept error" << endl;
             exit(EXIT_FAILURE);

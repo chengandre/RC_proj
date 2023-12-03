@@ -1,5 +1,7 @@
 AS
 User
+USERS
+AUCTIONS
 *.c
 ASSETS
 .DS_Store
