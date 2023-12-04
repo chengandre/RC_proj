@@ -394,9 +394,9 @@ void handleTCPRequest(int &fd, pid_t &pid) {
     cout << "[LOG]: Got one request child " << pid << " handling it" << endl;
     string request, tmp;
     vector<string> request_arguments;
-    char buffer[BUFFERSIZE];
-    int n, request_type;
-
+    // char buffer[BUFFERSIZE];
+    int request_type;
+    // int n;
     receiveTCPsize(fd, 3, tmp, pid);
     request_type = parseCommand(tmp);
     receiveTCPsize(fd, 1, tmp, pid); // clear space

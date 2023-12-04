@@ -109,7 +109,6 @@ int indexSpace(int n_spaces, string &target){
 
 string getSubString(string &target, int start, int size) {
     string tmp;
-    int i = start;
     int j = 0;
     while (j < size) {
         tmp.push_back(target[start+j]);
@@ -213,6 +212,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
                 }
                 return 0; // dunno what else to return
             } else {
+                n = -1;
                 cout << "Syntax error" << endl;
             }
             break;
@@ -236,6 +236,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
                     cout << "User is not registered" << endl;
                 }
             } else {
+                n = -1;
                 cout << "Syntax error" << endl;
             }
             break;
@@ -255,6 +256,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
                     cout << "User not registered" << endl;
                 }
             } else {
+                n = -1;
                 cout << "Syntax error" << endl;
             }
             break;
@@ -280,6 +282,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
                     }
                 }
             } else {
+                n = -1;
                 cout << "Syntax error" << endl;
             }
             break;
@@ -305,6 +308,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
                     }
                 }
             } else {
+                n = -1;
                 cout << "Syntax error" << endl;
             }
             break;
@@ -372,15 +376,17 @@ int handleUDPRequest(int request, vector<string> arguments) {
                     }
                 }
             } else {
+                n = -1;
                 cout << "Syntax error" << endl;
             }
             break;
         default:
             cout << "Not possible from UDP" << endl;
+            n = -1;
             break;
     }
     
-    return -1;
+    return n;
 }
 
 int sendReceiveTCPRequest(string message, int size) {
@@ -543,6 +549,7 @@ int handleTCPRequest(int request, vector<string> inputs) {
             break;
         default:
             cout << "Not possible" << endl;
+            n = -1;
             break;
     }
     return n;
