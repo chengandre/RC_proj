@@ -384,6 +384,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
 }
 
 int sendReceiveTCPRequest(string message, int size) {
+
     int fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
     if (fd_tcp == -1) {
         return fd_tcp;
@@ -463,8 +464,6 @@ int handleTCPRequest(int request, vector<string> inputs) {
             if (!loggedIn) {
                 cout << "User not logged in" << endl;
             }
-            userInfo.push_back("123456");
-            userInfo.push_back("12345678");
             message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " ";
             message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " ";
             tmp = openJPG(inputs[2]);

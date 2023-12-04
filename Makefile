@@ -2,7 +2,7 @@
 CXX = g++
 
 # Flags for compilation
-CXXFLAGS = -std=c++11 -Wall
+CXXFLAGS = -std=c++17 -Wall
 
 # Source files
 AS_SRC = AS.cpp

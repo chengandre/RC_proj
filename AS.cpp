@@ -18,7 +18,11 @@ time_t fulltime;
 struct tm *current_time;
 string current_time_str;
 
-
+bool exists(string& name) {
+    // check if dir/file exists
+    struct stat buffer;   
+    return (stat (name.c_str(), &buffer) == 0); 
+}
 
 int parseCommand(string &command) {
     if (command == "LIN") {
@@ -70,16 +74,17 @@ void parseInput(char *input, vector<string> &inputs) {
     }
 }
 
-int createLogin(string &uid) {
+int createLogin(string &uid, string &pass) {
     string loginName;
 
+    // check uid better
     if (uid.size() != 6) {
         cout << "[LOG]: Invalid UID on login" << endl;
         return -1;
     }
 
     loginName = "USERS/" + uid + "/" + uid + "_login.txt";
-
+    // check if pass is correct
     ofstream fout(loginName, ios::out);
     if (!fout) {
         cout << "[LOG]: Couldn't create login file" << endl;
@@ -91,7 +96,8 @@ int createLogin(string &uid) {
 }
 
 int Register(string &uid, string &pass) {
-    string userDir, userPass;
+    // check uid and pass
+    string userDir, userPass, hostedDir, biddedDir;
     int ret;
 
     userDir = "USERS/" + uid;
@@ -101,16 +107,66 @@ int Register(string &uid, string &pass) {
         return -1;
     }
 
+    hostedDir = userDir + "/HOSTED";
+    ret = mkdir(hostedDir.c_str(), 0700);
+    if (ret == -1) {
+        cout << "[LOG]: Couldn't create hosted directory upon registration" << endl;
+        filesystem::remove_all(userDir);
+        return -1;
+    }
+
+    biddedDir = userDir + "/BIDDED";
+    ret = mkdir(biddedDir.c_str(), 0700);
+    if (ret == -1) {
+        cout << "[LOG]: Couldn't create bidded directory upon registration" << endl;
+        filesystem::remove_all(userDir);
+        return -1;
+    }
+
     userPass = "USERS/" + uid + "/" + uid + "_pass.txt";
     ofstream fout(userPass, ios::out);
     if (!fout) {
         cout << "[LOG]: Couldn't create user password file" << endl;
-        remove_all(userDir);
+        filesystem::remove_all(userDir);
         return -1;
     }
     fout << pass;
-    
+    cout << "[LOG]: User " + uid + " registered" << endl;
+
     return 0;
+}
+
+void handleUDPRequest(char request[]) {
+    vector<string> request_arguments;
+    int request_type;
+
+    parseInput(request, request_arguments);
+    request_type = parseCommand(request_arguments[0]);
+    // create enumerate to answer back to user?
+    switch(request_type) {
+        case LOGIN: {
+            string uid = request_arguments[1];
+            string pass = request_arguments[2];
+            string loginDir = "USERS/" + uid;
+            if (exists(loginDir)) {
+                string loginTxt;
+                loginTxt = loginDir + "/" + uid + "_login.txt";
+                if (exists(loginTxt)) {
+                    cout << "[LOG]: User already logged in" << endl;
+                    // return -1?
+                    break;
+                }
+                createLogin(uid, pass);
+            }
+            else {
+                Register(uid, pass);
+                createLogin(uid, pass);
+            }
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 void startUDP(void) {
@@ -119,7 +175,7 @@ void startUDP(void) {
         exit(1);
     }
 
-    n_udp = bind(fd_udp, res->ai_addr, res->ai_addrlen);
+    n_udp = ::bind(fd_udp, res->ai_addr, res->ai_addrlen);
     if (n_udp == -1) {
         cout << "bind" << strerror(errno);
         exit(1);
@@ -128,17 +184,20 @@ void startUDP(void) {
     cout << "[LOG]: UDP starting to read from socket" << endl;
     while (1) {
         addrlen = sizeof(addr);
-        n_udp = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*) &addr, &addrlen);
+        n_udp = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n_udp == -1) {
             exit(1);
         }
 
-        string message = "Server received: ";
-        message += buffer;
-        cout << message;
 
-        // handleUDPRequest(message, pid);
-        // write(1, message.c_str(), message.length());
+
+        // string message = "Server received: ";
+        // message += buffer;
+        // cout << message;
+
+        handleUDPRequest(buffer);
+
+        string message = "RLI REG\n";
         n_udp = sendto(fd_udp, message.c_str(), message.length(), 0, (struct sockaddr*) &addr, addrlen);
         if (n_udp == -1) {
             exit(1);
@@ -216,6 +275,9 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid, pid_t pid) {
     }
     cout << "[LOG]: " << pid << " Received file of size " << total_received << endl;
     fout.close();
+    
+    filesystem::resize_file(dir, size);
+
     return total_received;
     // receive image directly into file
 }
@@ -225,14 +287,14 @@ int sendTCPresponse(int fd, string &message, int size, pid_t &pid) {
     int total_sent = 0;
     int n;
     while (total_sent < size) {
-        n = write(fd_tcp, message.c_str() + total_sent, size - total_sent);
+        n = write(fd, message.c_str() + total_sent, size - total_sent);
         if (n == -1) {
             cout << "TCP send error" << endl;
             return n;
         }
         total_sent += n;
     }
-    cout << "[LOG]: Sent TCP request" << endl;
+    cout << "[LOG]: Sent TCP response" << endl;
     return total_sent;
 }
 
@@ -244,10 +306,12 @@ bool checkLogin (string &uid) {
 }
 
 bool checkPassword(string &uid, string &pw) {
-    string fname = "USERS/" + uid + "/" + uid + "_password.txt";
+    string fname = "USERS/" + uid + "/" + uid + "_pass.txt";
 
-    ifstream pw_file;
-    pw_file.open(fname, ios::in);
+    ifstream pw_file(fname);
+    if (!pw_file) {
+        cout << "[LOG]: Couldn't open user password file" << endl;
+    }
     
     ostringstream oss;
     oss << pw_file.rdbuf();
@@ -286,7 +350,8 @@ string getNextAID() {
     char tmp[4];
     snprintf(tmp, 4, "%03d", auction_number);
     string aid(tmp);
-    auction_number++;
+    auction_number = auction_number + 1;
+    cout << "[LOG]: Got aid " << aid << " and auction number is " << auction_number << endl;
     return aid;
 }
 
@@ -319,7 +384,7 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
         cout << "Error creating start auction text" << endl;
         return -1;
     }
-    fout.write(name.c_str(), name.size());
+    fout.write(tmp.c_str(), tmp.size());
     fout.close();
 
     return 0;
@@ -340,16 +405,19 @@ void handleTCPRequest(int &fd, pid_t &pid) {
             {
             receiveTCPspace(fd, 7, request, pid);
             parseInput(request, request_arguments);
+            cout << "[LOG]: got " + request << endl;
             ssize_t fsize;
             stringstream stream(request_arguments[6]);
             stream >> fsize;
 
             bool ok = true;
             if (!checkLogin(request_arguments[0])) {
+                cout << "[LOG]: User not logged in" << endl;;
                 // user not logged in
                 ok = false;
                 return; // maybe we can just return here
             } else if (!checkPassword(request_arguments[0], request_arguments[1])) {
+                cout << "[LOG]: Incorrect password" << endl;
                 // incorrect password
                 ok = false;
             } else {
@@ -425,7 +493,10 @@ void startTCP(void) {
         exit(EXIT_FAILURE);
     }
 
-    n_tcp = bind(fd_tcp, res->ai_addr, res->ai_addrlen);
+    int on = 1;
+    setsockopt(fd_tcp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+
+    n_tcp = ::bind(fd_tcp, res->ai_addr, res->ai_addrlen);
     if (n_tcp == -1) {
         cout << "TCP bind error" << endl;
         exit(EXIT_FAILURE);
@@ -449,6 +520,8 @@ void startTCP(void) {
             cout << "TCP fork error" << endl;
             exit(EXIT_FAILURE);
         } else if (pid == 0) {
+            int on = 1;
+            setsockopt(tcp_child, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
             handleTCPRequest(tcp_child, pid);
         }
     }
