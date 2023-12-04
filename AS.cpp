@@ -212,12 +212,12 @@ void concatenateString(string &target, char item[], int size) {
     }
 }
 
-int receiveTCPsize(int fd, int size, string &response, pid_t pid) {
+int receiveTCPsize(int fd, int size, string &response) {
     int total_received = 0;
     int n;
     char tmp[128];
     response.clear();
-    cout << "[LOG]: " << pid << " Receiving TCP request" << endl;
+    cout << "[LOG]: " << getpid() << " Receiving TCP request" << endl;
     while (total_received < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -227,18 +227,18 @@ int receiveTCPsize(int fd, int size, string &response, pid_t pid) {
         concatenateString(response, tmp, n);
         total_received += n;
     }
-    cout << "[LOG]: " << pid << " Received response of size " << total_received << endl;
+    cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
 
     return total_received;
 }
 
-int receiveTCPspace(int fd, int size, string &response, pid_t pid) {
+int receiveTCPspace(int fd, int size, string &response) {
     int total_received = 0;
     int total_spaces = 0;
     int n;
     char tmp[128];
     response.clear();
-    cout << "[LOG]: " << pid << " Receiving TCP request by spaces" << endl;
+    cout << "[LOG]: " << getpid() << " Receiving TCP request by spaces" << endl;
     while (total_spaces < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -251,12 +251,12 @@ int receiveTCPspace(int fd, int size, string &response, pid_t pid) {
             total_spaces++;
         }
     }
-    cout << "[LOG]: " << pid << " Received response of size " << total_received << endl;
+    cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
 
     return total_received;
 }
 
-int receiveTCPimage(int fd, int size, string &fname, string &aid, pid_t pid) {
+int receiveTCPimage(int fd, int size, string &fname, string &aid) {
     int total_received = 0;
     int n;
     char tmp[128];
@@ -274,7 +274,7 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid, pid_t pid) {
         fout.write(tmp, n);
         total_received += n;
     }
-    cout << "[LOG]: " << pid << " Received file of size " << total_received << endl;
+    cout << "[LOG]: " << getpid() << " Received file of size " << total_received << endl;
     fout.close();
     
     filesystem::resize_file(dir, size);
@@ -283,8 +283,8 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid, pid_t pid) {
     // receive image directly into file
 }
 
-int sendTCPresponse(int fd, string &message, int size, pid_t &pid) {
-    cout << "[LOG]: " << pid << " Sending TCP responde" << endl;
+int sendTCPresponse(int fd, string &message, int size) {
+    cout << "[LOG]: " << getpid() << " Sending TCP responde" << endl;
     int total_sent = 0;
     int n;
     while (total_sent < size) {
@@ -395,20 +395,20 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
     return 0;
 }
 
-void handleTCPRequest(int &fd, pid_t &pid, SharedAID *sharedAID) {
-    cout << "[LOG]: Got one request child " << pid << " handling it" << endl;
+void handleTCPRequest(int &fd, SharedAID *sharedAID) {
+    cout << "[LOG]: Got one request child " << getpid() << " handling it" << endl;
     string request, tmp;
     vector<string> request_arguments;
     // char buffer[BUFFERSIZE];
     int request_type;
     // int n;
-    receiveTCPsize(fd, 3, tmp, pid);
+    receiveTCPsize(fd, 3, tmp);
     request_type = parseCommand(tmp);
-    receiveTCPsize(fd, 1, tmp, pid); // clear space
+    receiveTCPsize(fd, 1, tmp); // clear space
     switch (request_type) {
         case OPEN:
             {
-            receiveTCPspace(fd, 7, request, pid);
+            receiveTCPspace(fd, 7, request);
             parseInput(request, request_arguments);
             cout << "[LOG]: got " + request << endl;
             ssize_t fsize;
@@ -433,7 +433,7 @@ void handleTCPRequest(int &fd, pid_t &pid, SharedAID *sharedAID) {
 
             if (!ok) {
                 tmp = "ROA NOK\n";
-                sendTCPresponse(fd, tmp, tmp.size(), pid);
+                sendTCPresponse(fd, tmp, tmp.size());
             } else {
                 // talvez pode-se remover a pasta com tds os ficheiros dentro dela
                 int status;
@@ -442,7 +442,7 @@ void handleTCPRequest(int &fd, pid_t &pid, SharedAID *sharedAID) {
                 if (status == -1) {
                     break;
                 }
-                status = receiveTCPimage(fd, fsize, request_arguments[5], aid, pid);
+                status = receiveTCPimage(fd, fsize, request_arguments[5], aid);
                 if (status == -1) {
                     deleteAuctionDir(aid); // adicionar loop ate confirmar sucesso?
                     break;
@@ -467,7 +467,7 @@ void handleTCPRequest(int &fd, pid_t &pid, SharedAID *sharedAID) {
                 fout.close();
                 
                 tmp = "ROA OK " + aid + "\n";
-                sendTCPresponse(fd, tmp, tmp.size(), pid);
+                sendTCPresponse(fd, tmp, tmp.size());
             }
 
             // check user
@@ -527,7 +527,7 @@ void startTCP(SharedAID *sharedAID) {
         } else if (pid == 0) {
             int on = 1;
             setsockopt(tcp_child, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-            handleTCPRequest(tcp_child, pid, sharedAID);
+            handleTCPRequest(tcp_child, sharedAID);
             if (shmdt(sharedAID) == -1) {
                 cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
             }
