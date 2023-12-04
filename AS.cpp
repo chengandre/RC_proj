@@ -1,6 +1,7 @@
 #include "AS.hpp"
 // handle signal child
 // verify if ifstream ofstream have opened correctly
+// use remove_all to delete everything in a folder
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child, errcode;
@@ -16,6 +17,8 @@ int auction_number = 0;
 time_t fulltime;
 struct tm *current_time;
 string current_time_str;
+
+
 
 int parseCommand(string &command) {
     if (command == "LIN") {
@@ -67,6 +70,48 @@ void parseInput(char *input, vector<string> &inputs) {
     }
 }
 
+int createLogin(string &uid) {
+    string loginName;
+
+    if (uid.size() != 6) {
+        cout << "[LOG]: Invalid UID on login" << endl;
+        return -1;
+    }
+
+    loginName = "USERS/" + uid + "/" + uid + "_login.txt";
+
+    ofstream fout(loginName, ios::out);
+    if (!fout) {
+        cout << "[LOG]: Couldn't create login file" << endl;
+        return -1;
+    }
+    cout << "User " + uid << " logged in" << endl;
+
+    return 0;
+}
+
+int Register(string &uid, string &pass) {
+    string userDir, userPass;
+    int ret;
+
+    userDir = "USERS/" + uid;
+    ret = mkdir(userDir.c_str(), 0700);
+    if (ret == -1) {
+        cout << "[LOG]: Couldn't create user directory" << endl;
+        return -1;
+    }
+
+    userPass = "USERS/" + uid + "/" + uid + "_pass.txt";
+    ofstream fout(userPass, ios::out);
+    if (!fout) {
+        cout << "[LOG]: Couldn't create user password file" << endl;
+        remove_all(userDir);
+        return -1;
+    }
+    fout << pass;
+    
+    return 0;
+}
 
 void startUDP(void) {
     fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
@@ -91,6 +136,8 @@ void startUDP(void) {
         string message = "Server received: ";
         message += buffer;
         cout << message;
+
+        // handleUDPRequest(message, pid);
         // write(1, message.c_str(), message.length());
         n_udp = sendto(fd_udp, message.c_str(), message.length(), 0, (struct sockaddr*) &addr, addrlen);
         if (n_udp == -1) {

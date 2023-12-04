@@ -71,6 +71,26 @@ int CreateAUCTIONDir(int AID) {
     return 1;
 }
 
+int createLogin(string &uid) {
+    string loginName;
+
+    if (UID.size() != 6) {
+        cout << "[LOG]: Invalid UID on login" << endl;
+        return -1;
+    }
+
+    loginName = "USERS/" + uid + "/" + uid + "_login.txt";
+
+    ofstream fout(loginName, ios::out);
+    if (!fout) {
+        cout << "[LOG]: Couldn't create login file" << endl;
+        return -1
+    }
+    cout << "User " + uid << " logged in" << endl;
+
+    return 0;
+}
+
 int CreateLogin(char *UID) {
     char loginName[35];
     FILE *fp;
@@ -90,6 +110,8 @@ int CreateLogin(char *UID) {
     fclose(fp);
     return 1;
 }
+
+
 int EraseLogin(char *UID) {
     char loginName[35];
 
@@ -107,6 +129,29 @@ int EraseLogin(char *UID) {
 //*------------------------------------------------------*
 //*Created Functions*
 //*------------------------------------------------------*
+
+int Register(string &uid, string &pass) {
+    string userDIR, userPass;
+    int ret;
+
+    userDir = "USERS/" + uid;
+    ret = mkdir(userDir, 0700);
+    if (ret == -1) {
+        cout << "[LOG]: Couldn't create user directory" << endl;
+        return -1;
+    }
+
+    userPass = "USERS/" + uid + "/" + uid + "_pass.txt";
+    ofstream fout(userPass, ios::out);
+    if (!fout) {
+        cout << "[LOG]: Couldn't create user password file" << endl;
+        remove_all(userDir);
+        return -1;
+    }
+    fout << pass;
+    
+    return 0;
+}
 
 int Register(char *UID, char *pass){
     char userDir[18];
