@@ -208,6 +208,9 @@ int handleUDPRequest(int request, vector<string> arguments) {
                     cout << "Incorrect password" << endl;
                 }
                 else if (response[1] == "REG") {
+                    loggedIn = true;
+                    userInfo.push_back(arguments[1]);
+                    userInfo.push_back(arguments[2]);
                     cout << "New User registered" << endl;
                 }
                 return 0; // dunno what else to return

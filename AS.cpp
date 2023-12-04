@@ -17,6 +17,7 @@ int auction_number = 0;
 time_t fulltime;
 struct tm *current_time;
 string current_time_str;
+SharedAID *sharedAID;
 
 bool exists(string& name) {
     // check if dir/file exists
@@ -346,12 +347,16 @@ void deleteAuctionDir(string &aid) {
     rmdir(BIDS_dirname.c_str());
 }
 
-string getNextAID() {
+string getNextAID(SharedAID *sharedAID) {
     char tmp[4];
-    snprintf(tmp, 4, "%03d", auction_number);
+
+    sem_wait(&sharedAID->sem);
+    //lock_guard<mutex> lock(sharedAID->mutex);
+    snprintf(tmp, 4, "%03d", sharedAID->AID);
+    sharedAID->AID++;
+    sem_post(&sharedAID->sem);
+
     string aid(tmp);
-    auction_number = auction_number + 1;
-    cout << "[LOG]: Got aid " << aid << " and auction number is " << auction_number << endl;
     return aid;
 }
 
@@ -390,7 +395,7 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
     return 0;
 }
 
-void handleTCPRequest(int &fd, pid_t &pid) {
+void handleTCPRequest(int &fd, pid_t &pid, SharedAID *sharedAID) {
     cout << "[LOG]: Got one request child " << pid << " handling it" << endl;
     string request, tmp;
     vector<string> request_arguments;
@@ -432,7 +437,7 @@ void handleTCPRequest(int &fd, pid_t &pid) {
             } else {
                 // talvez pode-se remover a pasta com tds os ficheiros dentro dela
                 int status;
-                string aid = getNextAID();
+                string aid = getNextAID(sharedAID);
                 status = createAuctionDir(aid);
                 if (status == -1) {
                     break;
@@ -486,7 +491,7 @@ void handleTCPRequest(int &fd, pid_t &pid) {
     close(fd);
 }
 
-void startTCP(void) {
+void startTCP(SharedAID *sharedAID) {
     fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
     if (fd_tcp == -1) {
         cout << "TCP socket error" << endl;
@@ -522,12 +527,40 @@ void startTCP(void) {
         } else if (pid == 0) {
             int on = 1;
             setsockopt(tcp_child, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-            handleTCPRequest(tcp_child, pid);
+            handleTCPRequest(tcp_child, pid, sharedAID);
+            if (shmdt(sharedAID) == -1) {
+                cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
+            }
         }
     }
 }
 
+void sigintHandler(int signum) {
+
+    sem_destroy(&sharedAID->sem);
+    shmdt(sharedAID);
+
+    string userDir = "USERS";
+    for (const auto& entry : filesystem::directory_iterator(userDir)) {
+        if (filesystem::exists(entry.path())) {
+            filesystem::remove_all(entry.path());
+        }
+    } 
+
+    string auctionsDir = "AUCTIONS";
+    for (const auto& entry : filesystem::directory_iterator(auctionsDir)) {
+        if (filesystem::exists(entry.path())) {
+            filesystem::remove_all(entry.path());
+        }
+    } 
+        
+    exit(0);
+}
+
 int main(int argc, char *argv[]) {
+
+    signal(SIGINT, sigintHandler);
+    signal(SIGCHLD, SIG_IGN);
 
     switch(argc) {
         case 1:
@@ -563,14 +596,23 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    key_t key = ftok("SharedData", 0);
+    int shmid = shmget(key, sizeof(SharedAID), 0666 | IPC_CREAT);
+    sharedAID = (SharedAID*) shmat(shmid, (void*)0, 0);
+
+    sharedAID->AID = 0;
+    sem_init(&sharedAID->sem, 1, 1);
+
     pid_t pid = fork();
     if (pid == -1) {
         cout << "Fork error" << endl;
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
-        startTCP();
-    } else {
         startUDP();
+    } else {
+        signal(SIGINT, SIG_DFL);
+        startTCP(sharedAID);
+        
     }
     
 }

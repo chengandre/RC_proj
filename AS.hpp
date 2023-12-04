@@ -16,9 +16,14 @@
 #include <sys/stat.h>
 #include <fstream>
 #include <filesystem>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <semaphore.h>
 
 #define DEFAULT_PORT "58030" //number of group:30
 #define BUFFERSIZE 65535
+
+using namespace std;
 
 enum {
     EXIT = 0,
@@ -33,4 +38,9 @@ enum {
     CLOSE = 9,
     SHOW_ASSET = 10,
     BID = 11
+};
+
+struct SharedAID {
+    sem_t sem;
+    int AID;
 };
