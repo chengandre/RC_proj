@@ -5,31 +5,22 @@ CXX = g++
 CXXFLAGS = -std=c++17 -Wall
 
 # Source files
-AS_SRC = AS.cpp
-USER_SRC = User.cpp
+AS_SRC = AS.cpp common.cpp
+USER_SRC = User.cpp common.cpp
 
 # Header files
-AS_HDR = AS.hpp
-USER_HDR = User.hpp
-
-# Object files
-AS_OBJ = $(AS_SRC:.cpp=.o)
-USER_OBJ = $(USER_SRC:.cpp=.o)
+AS_HDR = AS.hpp common.hpp
+USER_HDR = User.hpp common.hpp
 
 # Targets
 all: AS user
 
-AS: $(AS_OBJ)
-	$(CXX) $(CXXFLAGS) -o AS $(AS_OBJ)
+AS: $(AS_SRC)
+	$(CXX) $(CXXFLAGS) -o AS $(AS_SRC)
 
-user: $(USER_OBJ)
-	$(CXX) $(CXXFLAGS) -o user $(USER_OBJ)
-
-# Object file rules
-%.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+user: $(USER_SRC)
+	$(CXX) $(CXXFLAGS) -o user $(USER_SRC)
 
 # Clean rule
 clean:
-	rm -f AS user $(AS_OBJ) $(USER_OBJ)
-
+	rm -f AS user

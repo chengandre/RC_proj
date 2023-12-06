@@ -1,4 +1,5 @@
 #include "AS.hpp"
+#include "common.hpp"
 // handle signal child
 // verify if ifstream ofstream have opened correctly
 // use remove_all to delete everything in a folder
@@ -55,26 +56,17 @@ int parseCommand(string &command) {
     }
 }
 
-void parseInput(string &input, vector<string> &inputs) {
-    inputs.clear();
+bool checkPassword(string &uid, string &pw) {
+    string fname = "USERS/" + uid + "/" + uid + "_pass.txt";
 
-    istringstream stream(input);
-    string tmp;
-
-    while (stream >> tmp) {
-        inputs.push_back(tmp);
+    ifstream pw_file(fname);
+    if (!pw_file) {
+        cout << "[LOG]: Couldn't open user password file" << endl;
     }
-}
-
-void parseInput(char *input, vector<string> &inputs) {
-    inputs.clear();
-
-    istringstream stream(input);
-    string tmp;
-
-    while (stream >> tmp) {
-        inputs.push_back(tmp);
-    }
+    
+    ostringstream oss;
+    oss << pw_file.rdbuf();
+    return oss.str() == pw;
 }
 
 void removeFile(string &path, bool no_error) {
@@ -222,7 +214,7 @@ string handleUDPRequest(char request[]) {
             else {
                 Register(uid, pass);
                 createLogin(uid, pass, syntax, no_error);
-                response = "RLI RLG\n";
+                response = "RLI REG\n";
             }
             break;
         }
@@ -287,7 +279,7 @@ void startUDP() {
 
         response.clear();
         response = handleUDPRequest(buffer);
-
+        cout << "[LOG]: UDP sending response: " << response << endl;
         n_udp = sendto(fd_udp, response.c_str(), response.length(), 0, (struct sockaddr*) &addr, addrlen);
         if (n_udp == -1) {
             exit(1);
@@ -396,22 +388,12 @@ bool checkLogin (string &uid) {
     return (stat (tmp.c_str(), &buffer) == 0); 
 }
 
-bool checkPassword(string &uid, string &pw) {
-    string fname = "USERS/" + uid + "/" + uid + "_pass.txt";
 
-    ifstream pw_file(fname);
-    if (!pw_file) {
-        cout << "[LOG]: Couldn't open user password file" << endl;
-    }
-    
-    ostringstream oss;
-    oss << pw_file.rdbuf();
-    return oss.str() == pw;
-}
 
 int createAuctionDir(string &aid) {
     string AID_dirname = "AUCTIONS/" + aid;
     string BIDS_dirname = "AUCTIONS/" + aid + "/BIDS";
+    string ASSET_dirname = "AUCTIONS/" + aid + "/ASSET";
     int ret;
 
     ret = mkdir(AID_dirname.c_str(), 0700);
@@ -423,6 +405,12 @@ int createAuctionDir(string &aid) {
     ret = mkdir(BIDS_dirname.c_str(), 0700);
     if (ret == -1) {
         rmdir(AID_dirname.c_str());
+        return -1;
+    }
+
+    ret = mkdir(ASSET_dirname.c_str(), 0700);
+    if (ret == -1) {
+        filesystem::remove_all(AID_dirname);
         return -1;
     }
 
@@ -452,7 +440,7 @@ string getNextAID(SharedAID *sharedAID) {
 
 int createStartAuctionText(vector<string> &arguments, string &aid) {
     string name, tmp;
-    char time_str[20]; // date and time
+    char time_str[30]; // date and time
 
     tmp = arguments[0] + " "; // UID
     tmp += arguments[2] + " "; // Name
@@ -462,7 +450,7 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
 
     time(&fulltime); // update time in seconds
     current_time = gmtime(&fulltime);
-    snprintf(time_str, 20, "%4d−%02d−%02d %02d:%02d:%02d",
+    snprintf(time_str, 30, "%4d−%02d−%02d %02d:%02d:%02d",
             current_time->tm_year + 1900, current_time->tm_mon + 1,current_time->tm_mday, 
             current_time->tm_hour , current_time->tm_min , current_time->tm_sec);
     tmp += time_str;

@@ -1,6 +1,7 @@
 // handle signal child
 // remove exit(1)
 #include "User.hpp"
+#include "common.hpp"
 using namespace std;
 
 int fd_udp;
@@ -13,52 +14,10 @@ char buffer[BUFFERSIZE];
 vector<string> inputs, userInfo;
 bool loggedIn = false;
 
-void parseInput(string &input, vector<string> &inputs) {
-    inputs.clear();
-
-    istringstream stream(input);
-    string tmp;
-
-    while (stream >> tmp) {
-        inputs.push_back(tmp);
+void printVectorString(vector<string> &target) {
+    for (int i = 0; i < target.size(); i++) {
+        cout << target[i] << endl;
     }
-}
-
-void parseInput(char *input, vector<string> &inputs) {
-    inputs.clear();
-
-    istringstream stream(input);
-    string tmp;
-
-    while (stream >> tmp) {
-        inputs.push_back(tmp);
-    }
-}
-
-int checkUID(string &uid) {
-    // 6 digitos
-    return all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6;
-}
-
-int checkPassword(string &pw) {
-    // 8 numeros ou letras
-    return all_of(pw.begin(), pw.end(), ::isalnum) && pw.length() == 8;
-}
-
-int checkAID(string &aid) {
-    return all_of(aid.begin(), aid.end(), ::isdigit) && aid.length() == 3;
-}
-
-int checkName(string &name) {
-    return all_of(name.begin(), name.end(), ::isalnum) && name.length() <= 10;
-}
-
-int checkPrice(string &price) {
-    return all_of(price.begin(), price.end(), ::isdigit);
-}
-
-int checkTime(string &time) {
-    return all_of(time.begin(), time.end(), ::isdigit);
 }
 
 int parseCommand(string &command) {
@@ -124,13 +83,6 @@ void concatenateString(string &target, char item[], int size) {
     }
 }
 
-string openJPG(string fname) {
-    ifstream fin(fname, ios::binary);
-    ostringstream oss;
-    oss << fin.rdbuf();
-    return oss.str();
-}
-
 void saveJPG(string &data, string &fname) {
     std::ofstream fout(fname, std::ios::binary);
     fout.write(data.c_str(), data.size());
@@ -152,15 +104,6 @@ int sendReceiveUDPRequest(string message, int size) {
         total_sent += n;
     }
     cout << "[LOG]: Sent UDP request" << endl;
-    // n = sendto(fd_udp, message.c_str(), size, 0, res->ai_addr, res->ai_addrlen);
-    // if (n == -1) {
-    //     cout << "UDP send error" << endl;
-    //     return n;
-    // }
-    
-    // while (n > 0) {
-        // keep reading
-    // }
 
     addrlen = sizeof(addr);
     all_response.clear();
@@ -212,6 +155,9 @@ int handleUDPRequest(int request, vector<string> arguments) {
                     userInfo.push_back(arguments[1]);
                     userInfo.push_back(arguments[2]);
                     cout << "New User registered" << endl;
+                }
+                else {
+                    cout << "Invalid response from server" << endl;
                 }
                 return 0; // dunno what else to return
             } else {
@@ -405,9 +351,6 @@ int sendReceiveTCPRequest(string message, int size) {
         return fd_tcp;
     }
 
-    // n_tcp = write(fd_tcp, message.c_str(), size);
-    // if (n_tcp == -1) exit(1);
-
     cout << "[LOG]: Sending TCP request" << endl;
     int total_sent = 0;
     while (total_sent < size) {
@@ -439,27 +382,11 @@ int sendReceiveTCPRequest(string message, int size) {
     // int n = read(fd_tcp, buffer, BUFFERSIZE);
     
     return total_received;
-    // ssize_t total = 0;
-    // ssize_t sent;
-    // while (sent < size) {
-    //     sent = write(fd_tcp, message.c_str() + total, size - total);
-    //     if (sent == -1) {
-    //         return sent; // error
-    //     }
-
-    //     total += sent;
-    // }
 
     /* Divide this function into more, one being receiveTCPResponse(int fd, int bytes)
     start by just reading the bytes necessary to know the response command and status,
     in handletcprequest check status and ask to read more
     this is an alternative to sleep(t)*/
-}
-
-void printString(vector<string> &target) {
-    for (int i = 0; i < target.size(); i++) {
-        cout << target[i] << endl;
-    }
 }
 
 int handleTCPRequest(int request, vector<string> inputs) {
@@ -525,7 +452,7 @@ int handleTCPRequest(int request, vector<string> inputs) {
                 tmp = getSubString(all_response, 0, space_index); // get first 4 inputs
                 //tmp = all_response.substr(0, space_index); // get first 4 inputs
                 parseInput(tmp, response);
-                printString(response);
+                printVectorString(response);
                 ssize_t fsize;
                 stringstream stream(response[3]); // turn size into int
                 stream >> fsize;
