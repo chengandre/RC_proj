@@ -21,6 +21,15 @@ struct tm *current_time;
 string current_time_str;
 SharedAID *sharedAID;
 
+bool checkName(string& name){
+    return all_of(name.begin(), name.end(), ::isalnum) && name.length() <=10;
+}
+bool checkStartValue(string& svalue){
+    return all_of(svalue.begin(), svalue.end(),::isdigit) && svalue.length()<=6;
+}
+bool checkDuration(string& duration){
+    return all_of(duration.begin(), duration.end(),::isdigit) && duration.length()<=5;
+}
 bool exists(string& name) {
     // check if dir/file exists
     struct stat buffer;   
@@ -55,6 +64,18 @@ int parseCommand(string &command) {
     }
 }
 
+bool checkPassword(string &uid, string &pw) {
+    string fname = "USERS/" + uid + "/" + uid + "_pass.txt";
+
+    ifstream pw_file(fname);
+    if (!pw_file) {
+        cout << "[LOG]: Couldn't open user password file" << endl;
+    }
+    
+    ostringstream oss;
+    oss << pw_file.rdbuf();
+    return oss.str() == pw;
+}
 void parseInput(string &input, vector<string> &inputs) {
     inputs.clear();
 
@@ -147,7 +168,6 @@ int removeLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
     
     return 0;
 }
-
 
 int Register(string &uid, string &pass) {
     // check uid and pass
@@ -396,18 +416,6 @@ bool checkLogin (string &uid) {
     return (stat (tmp.c_str(), &buffer) == 0); 
 }
 
-bool checkPassword(string &uid, string &pw) {
-    string fname = "USERS/" + uid + "/" + uid + "_pass.txt";
-
-    ifstream pw_file(fname);
-    if (!pw_file) {
-        cout << "[LOG]: Couldn't open user password file" << endl;
-    }
-    
-    ostringstream oss;
-    oss << pw_file.rdbuf();
-    return oss.str() == pw;
-}
 
 int createAuctionDir(string &aid) {
     string AID_dirname = "AUCTIONS/" + aid;
@@ -515,11 +523,16 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                 cout << "[LOG]: Incorrect password" << endl;
                 // incorrect password
                 ok = false;
-            } else {
+            } else if (!checkName(request_arguments[2]) || !checkStartValue(request_arguments[3]) || !checkDuration(request_arguments[4])){
+                //O QUE PRINT??? AQUI???
+                // checking other things' length
+                ok = false;
+            } else{
                 // check if an auction has the same name?
-                // check name and other things' length
-                
             }
+                
+
+                
 
             if (!ok) {
                 tmp = "ROA NOK\n";
