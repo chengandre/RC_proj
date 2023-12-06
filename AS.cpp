@@ -90,24 +90,40 @@ void removeFile(string &path, bool no_error) {
     }
 }
 
-int createLogin(string &uid, string &pass) {
+void removeDir(string &path, bool no_error) {
+    error_code ec;
+    
+    int ret = filesystem::remove_all(path, ec);
+    if (!ec && ret == 0) {
+        no_error = false;
+    } 
+    else {      
+        no_error = false;
+        cout << "Dir " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
+    }
+}
+
+int createLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
     string loginName;
 
     // check uid better
     if (uid.size() != 6) {
         cout << "[LOG]: Invalid UID on login" << endl;
+        syntax = false;
+        return 0;
+    } else if (!checkPassword(uid, pass)) {
+        cout << "[LOG]: Incorrect password" << endl;
         return -1;
     }
 
     loginName = "USERS/" + uid + "/" + uid + "_login.txt";
-    // check if pass is correct
     ofstream fout(loginName, ios::out);
     if (!fout) {
         cout << "[LOG]: Couldn't create login file" << endl;
-        return -1;
+        no_error = false;
+        return 0;
     }
-    cout << "User " + uid << " logged in" << endl;
-
+    cout << "[LOG]: User " + uid << " logged in" << endl;
     return 0;
 }
 
@@ -129,6 +145,7 @@ int removeLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
     loginName = "USERS/" + uid + "/" + uid + "_login.txt";
     removeFile(loginName, no_error);
     
+    return 0;
 }
 
 
@@ -185,7 +202,6 @@ string handleUDPRequest(char request[]) {
     request_type = parseCommand(request_arguments[0]);
     switch(request_type) {
         case LOGIN: {
-            // check syntax
             string uid = request_arguments[1];
             string pass = request_arguments[2];
             string loginDir = "USERS/" + uid;
@@ -197,8 +213,7 @@ string handleUDPRequest(char request[]) {
                     response = "RLI OK\n";
                     // return -1?
                     break;
-                } else if (checkPassword(uid, pass)) {
-                    createLogin(uid, pass);
+                } else if (createLogin(uid, pass, syntax, no_error)) {
                     response = "RLI OK\n";
                     break;
                 }
@@ -206,7 +221,7 @@ string handleUDPRequest(char request[]) {
             }
             else {
                 Register(uid, pass);
-                createLogin(uid, pass);
+                createLogin(uid, pass, syntax, no_error);
                 response = "RLI RLG\n";
             }
             break;
