@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
+
+#define MAXFILESIZE 10000000
 
 using namespace std;
 
@@ -18,7 +21,7 @@ void parseInput(char *input, vector<string> &inputs);
 
 bool checkUID(string &uid);
 
-bool checkPassword(string &pw);
+bool checkPasswordSyntax(string &pw);
 
 bool checkAID(string &aid);
 

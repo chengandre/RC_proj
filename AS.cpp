@@ -57,12 +57,20 @@ int parseCommand(string &command) {
     }
 }
 
-bool checkPassword(string &uid, string &pw) {
+bool checkPassword(string &uid, string &pw, bool &syntax, bool &no_error) {
     string fname = "USERS/" + uid + "/" + uid + "_pass.txt";
+
+    if (!checkPasswordSyntax(pw)) {
+        cout << "[LOG]: Password syntax error" << endl;
+        syntax = false;
+        return;
+    }
 
     ifstream pw_file(fname);
     if (!pw_file) {
         cout << "[LOG]: Couldn't open user password file" << endl;
+        no_error = false;
+        return;
     }
     
     ostringstream oss;
@@ -125,7 +133,7 @@ int removeLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
     // other errors are carried by syntax and no_error;
     string loginName;
 
-    if (uid.size() != 6) {
+    if (!checkUID(uid)) {
         cout << "[LOG]: Invalid UID on login" << endl;
         syntax = false;
         return 0;

@@ -30,7 +30,7 @@ bool checkUID(string &uid) {
     return all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6 && uid[0] == 1;
 }
 
-bool checkPassword(string &pw) {
+bool checkPasswordSyntax(string &pw) {
     // 8 numeros ou letras
     return all_of(pw.begin(), pw.end(), ::isalnum) && pw.length() == 8;
 }
@@ -52,10 +52,23 @@ bool checkTime(string &time) {
 }
 
 bool checkStartValue(string& svalue) {
-    return all_of(svalue.begin(), svalue.end(),::isdigit) && svalue.length()<=6;
+    return all_of(svalue.begin(), svalue.end(),::isdigit) && svalue.length() <= 6;
 }
+
 bool checkDuration(string& duration) {
-    return all_of(duration.begin(), duration.end(),::isdigit) && duration.length()<=5;
+    return all_of(duration.begin(), duration.end(),::isdigit) && duration.length() <= 5;
+}
+
+bool isalnumplus(char c) {
+    return isalnum(c) || c == '.' || c == '_' || c == '-';
+}
+
+bool checkFileName(string &fname) {
+    return all_of(fname.begin(), fname.end(),::isalnumplus) && fname.length() <= 24;
+}
+
+bool checkFileSize(string &fname) {
+    return filesystem::file_size(fname) <= MAXFILESIZE;
 }
 
 string openJPG(string fname) {
