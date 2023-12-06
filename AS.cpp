@@ -137,7 +137,9 @@ int Register(string &uid, string &pass) {
     return 0;
 }
 
-void handleUDPRequest(char request[]) {
+string handleUDPRequest(char request[]) {
+    // return string with response
+    string response;
     vector<string> request_arguments;
     int request_type;
 
@@ -146,6 +148,7 @@ void handleUDPRequest(char request[]) {
     // create enumerate to answer back to user?
     switch(request_type) {
         case LOGIN: {
+            // check syntax
             string uid = request_arguments[1];
             string pass = request_arguments[2];
             string loginDir = "USERS/" + uid;
@@ -154,23 +157,32 @@ void handleUDPRequest(char request[]) {
                 loginTxt = loginDir + "/" + uid + "_login.txt";
                 if (exists(loginTxt)) {
                     cout << "[LOG]: User already logged in" << endl;
+                    response = "RLI OK\n";
                     // return -1?
                     break;
                 }
-                createLogin(uid, pass);
+                else if (checkPassword) {
+                    createLogin(uid, pass);
+                    response = "RLI OK\n";
+                    break;
+                }
+                response = "RLI NOK\n";
             }
             else {
                 Register(uid, pass);
                 createLogin(uid, pass);
+                response = "RLI RLG\n";
             }
             break;
         }
         default:
+            response = "Syntax Error\n";
             break;
     }
+    return response;
 }
 
-void startUDP(void) {
+void startUDP() {
     fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd_udp == -1) {
         exit(1);
@@ -183,23 +195,22 @@ void startUDP(void) {
     }
 
     cout << "[LOG]: UDP starting to read from socket" << endl;
-    while (1) {
+    string response;
+    while (true) {
         addrlen = sizeof(addr);
         n_udp = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n_udp == -1) {
             exit(1);
         }
 
-
-
         // string message = "Server received: ";
         // message += buffer;
         // cout << message;
 
-        handleUDPRequest(buffer);
+        response.clear();
+        response = handleUDPRequest(buffer);
 
-        string message = "RLI REG\n";
-        n_udp = sendto(fd_udp, message.c_str(), message.length(), 0, (struct sockaddr*) &addr, addrlen);
+        n_udp = sendto(fd_udp, response.c_str(), response.length(), 0, (struct sockaddr*) &addr, addrlen);
         if (n_udp == -1) {
             exit(1);
         }
@@ -258,13 +269,14 @@ int receiveTCPspace(int fd, int size, string &response) {
 
 int receiveTCPimage(int fd, int size, string &fname, string &aid) {
     int total_received = 0;
-    int n;
+    int n, to_read;
     char tmp[128];
-    string dir = "AUCTIONS/" + aid + "/" + fname;
+    string dir = "AUCTIONS/" + aid + "/ASSET/" + fname;
     ofstream fout(dir, ios::binary);
 
     while (total_received < size) {
-        n = read(fd, tmp, 128);
+        to_read = min(128, size-total_received);
+        n = read(fd, tmp, to_read);
         if (n == -1) {
             cout << "TCP image receive error" << endl;
             fout.close();
@@ -274,10 +286,10 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid) {
         fout.write(tmp, n);
         total_received += n;
     }
-    cout << "[LOG]: " << getpid() << " Received file of size " << total_received << endl;
+    cout << "[LOG]: " << getpid() << " Received file of size " << total_received << " fsize is " << size << endl;
     fout.close();
     
-    filesystem::resize_file(dir, size);
+    // filesystem::resize_file(dir, size);
 
     return total_received;
     // receive image directly into file
