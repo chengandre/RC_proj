@@ -16,17 +16,17 @@ void parseInput(string &input, vector<string> &inputs);
 
 void parseInput(char *input, vector<string> &inputs);
 
-int checkUID(string &uid);
+bool checkUID(string &uid);
 
-int checkPassword(string &pw);
+bool checkPassword(string &pw);
 
-int checkAID(string &aid);
+bool checkAID(string &aid);
 
-int checkName(string &name);
+bool checkName(string &name);
 
-int checkPrice(string &price);
+bool checkPrice(string &price);
 
-int checkTime(string &time);
+bool checkTime(string &time);
 
 bool checkStartValue(string& svalue);
 

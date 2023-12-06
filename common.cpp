@@ -24,29 +24,30 @@ void parseInput(char *input, vector<string> &inputs) {
     }
 }
 
-int checkUID(string &uid) {
+bool checkUID(string &uid) {
+    // primeiro digito tem que ser um (foi dito no slack)
     // 6 digitos
-    return all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6;
+    return all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6 && uid[0] == 1;
 }
 
-int checkPassword(string &pw) {
+bool checkPassword(string &pw) {
     // 8 numeros ou letras
     return all_of(pw.begin(), pw.end(), ::isalnum) && pw.length() == 8;
 }
 
-int checkAID(string &aid) {
+bool checkAID(string &aid) {
     return all_of(aid.begin(), aid.end(), ::isdigit) && aid.length() == 3;
 }
 
-int checkName(string &name) {
+bool checkName(string &name) {
     return all_of(name.begin(), name.end(), ::isalnum) && name.length() <= 10;
 }
 
-int checkPrice(string &price) {
+bool checkPrice(string &price) {
     return all_of(price.begin(), price.end(), ::isdigit);
 }
 
-int checkTime(string &time) {
+bool checkTime(string &time) {
     return all_of(time.begin(), time.end(), ::isdigit);
 }
 
