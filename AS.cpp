@@ -22,15 +22,7 @@ struct tm *current_time;
 string current_time_str;
 SharedAID *sharedAID;
 
-bool checkName(string& name){
-    return all_of(name.begin(), name.end(), ::isalnum) && name.length() <=10;
-}
-bool checkStartValue(string& svalue){
-    return all_of(svalue.begin(), svalue.end(),::isdigit) && svalue.length()<=6;
-}
-bool checkDuration(string& duration){
-    return all_of(duration.begin(), duration.end(),::isdigit) && duration.length()<=5;
-}
+
 bool exists(string& name) {
     // check if dir/file exists
     struct stat buffer;   
@@ -211,7 +203,6 @@ string handleUDPRequest(char request[]) {
                 if (exists(loginTxt)) {
                     cout << "[LOG]: User already logged in" << endl;
                     response = "RLI OK\n";
-                    // return -1?
                     break;
                 } else if (createLogin(uid, pass, syntax, no_error)) {
                     response = "RLI OK\n";
@@ -236,11 +227,11 @@ string handleUDPRequest(char request[]) {
                 if (!exists(loginTxt)) {
                     cout << "[LOG]: User not logged in" << endl;
                     response = "RLO NOK\n";
-                    break;
-                } else if (removeLogin(uid, pass, syntax, no_error)) {
+                } else if (removeLogin(uid, pass, syntax, no_error) == -1) {
                     response = "RLI NOK\n";
+                } else {
+                    response = "RLI OK\n";
                 }
-                response = "RLI OK\n";
                 break;
             } else {
                 response = "RLO UNR\n";

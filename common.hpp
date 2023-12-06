@@ -28,6 +28,10 @@ int checkPrice(string &price);
 
 int checkTime(string &time);
 
+bool checkStartValue(string& svalue);
+
+bool checkDuration(string& duration);
+
 string openJPG(string fname);
 
 #endif

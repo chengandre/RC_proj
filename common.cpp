@@ -50,6 +50,13 @@ int checkTime(string &time) {
     return all_of(time.begin(), time.end(), ::isdigit);
 }
 
+bool checkStartValue(string& svalue) {
+    return all_of(svalue.begin(), svalue.end(),::isdigit) && svalue.length()<=6;
+}
+bool checkDuration(string& duration) {
+    return all_of(duration.begin(), duration.end(),::isdigit) && duration.length()<=5;
+}
+
 string openJPG(string fname) {
     ifstream fin(fname, ios::binary);
     ostringstream oss;
