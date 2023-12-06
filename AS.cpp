@@ -2,6 +2,8 @@
 // handle signal child
 // verify if ifstream ofstream have opened correctly
 // use remove_all to delete everything in a folder
+// add syntax if anything goes wrong change it to false
+// syntax error or error creating/removing files
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child, errcode;
@@ -75,6 +77,19 @@ void parseInput(char *input, vector<string> &inputs) {
     }
 }
 
+void removeFile(string &path, bool no_error) {
+    error_code ec;
+    int ret = filesystem::remove(path, ec);
+
+    if (!ec && !ret) {
+        no_error = false;
+    } 
+    else {      
+        no_error = false;
+        cout << "File " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
+    }
+}
+
 int createLogin(string &uid, string &pass) {
     string loginName;
 
@@ -95,6 +110,27 @@ int createLogin(string &uid, string &pass) {
 
     return 0;
 }
+
+int removeLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
+    // 0 if pass is ok, -1 otherwise
+    // other errors are carried by syntax and no_error;
+    string loginName;
+
+    if (uid.size() != 6) {
+        cout << "[LOG]: Invalid UID on login" << endl;
+        syntax = false;
+        return 0;
+    }
+    else if (!checkPassword(uid, pass)) {
+        cout << "[LOG]: Incorrect password" << endl;
+        return -1;
+    }
+
+    loginName = "USERS/" + uid + "/" + uid + "_login.txt";
+    removeFile(loginName, no_error);
+    
+}
+
 
 int Register(string &uid, string &pass) {
     // check uid and pass
@@ -142,10 +178,11 @@ string handleUDPRequest(char request[]) {
     string response;
     vector<string> request_arguments;
     int request_type;
+    bool syntax = true;
+    bool no_error = true;
 
     parseInput(request, request_arguments);
     request_type = parseCommand(request_arguments[0]);
-    // create enumerate to answer back to user?
     switch(request_type) {
         case LOGIN: {
             // check syntax
@@ -160,8 +197,7 @@ string handleUDPRequest(char request[]) {
                     response = "RLI OK\n";
                     // return -1?
                     break;
-                }
-                else if (checkPassword) {
+                } else if (checkPassword(uid, pass)) {
                     createLogin(uid, pass);
                     response = "RLI OK\n";
                     break;
@@ -175,9 +211,36 @@ string handleUDPRequest(char request[]) {
             }
             break;
         }
-        default:
-            response = "Syntax Error\n";
+        case LOGOUT: {
+            string uid = request_arguments[1];
+            string pass = request_arguments[2];
+            string loginDir = "USERS/" + uid;
+            if (exists(loginDir)) {
+                string loginTxt;
+                loginTxt = loginDir + "/" + uid + "_login.txt";
+                if (!exists(loginTxt)) {
+                    cout << "[LOG]: User not logged in" << endl;
+                    response = "RLO NOK\n";
+                    break;
+                } else if (removeLogin(uid, pass, syntax, no_error)) {
+                    response = "RLI NOK\n";
+                }
+                response = "RLI OK\n";
+                break;
+            } else {
+                response = "RLO UNR\n";
+            }
             break;
+        }
+        default:
+            syntax = false;
+            break;
+    }
+    if (!syntax) {
+        response = "Syntax Error\n";
+    }
+    else if (!no_error) {
+        response = "Error\n";
     }
     return response;
 }
