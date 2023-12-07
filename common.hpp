@@ -39,4 +39,8 @@ bool checkFileSize(string &fname);
 
 string openJPG(string fname);
 
+void printVectorString(vector<string> &target);
+
+string getSubString(string const&target, int start, int size);
+
 #endif

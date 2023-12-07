@@ -14,11 +14,6 @@ char buffer[BUFFERSIZE];
 vector<string> inputs, userInfo;
 bool loggedIn = false;
 
-void printVectorString(vector<string> &target) {
-    for (int i = 0; i < target.size(); i++) {
-        cout << target[i] << endl;
-    }
-}
 
 int parseCommand(string &command) {
     if (command == "login") {
@@ -64,17 +59,6 @@ int indexSpace(int n_spaces, string &target){
         return -1;
     }
     return i-1;
-}
-
-string getSubString(string &target, int start, int size) {
-    string tmp;
-    int j = 0;
-    while (j < size) {
-        tmp.push_back(target[start+j]);
-        j++;
-    }
-
-    return tmp;
 }
 
 void concatenateString(string &target, char item[], int size) {

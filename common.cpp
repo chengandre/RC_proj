@@ -77,3 +77,20 @@ string openJPG(string fname) {
     oss << fin.rdbuf();
     return oss.str();
 }
+
+void printVectorString(vector<string> &target) {
+    for (int i = 0; i < target.size(); i++) {
+        cout << target[i] << endl;
+    }
+}
+
+string getSubString(string const &target, int start, int size) {
+    string tmp;
+    int j = 0;
+    while (j < size) {
+        tmp.push_back(target[start+j]);
+        j++;
+    }
+
+    return tmp;
+}
