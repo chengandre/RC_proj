@@ -443,12 +443,23 @@ string handleUDPRequest(char request[]) {
                 response += start_value + " ";
                 response += date + " ";
                 response += time + " ";
-                response += duration;
+                response += duration + "\n";
 
                 string bidsDir = auctionDir + "/BIDS";
                 if (!filesystem::is_empty(bidsDir)) {
                     for (auto const &entry : filesystem::directory_iterator(bidsDir)) {
                         ifstream fin(entry);
+                        if (!fin) {
+                            cout << "[LOG]: Couldn't open bid file on show_record" << endl;
+                            no_error = false;
+                            break;
+                        }
+                        getline(fin, content);
+                        parseInput(content, content_arguments);
+                        fin.close();
+
+                        response += "B ";
+                        
                     }
                 }
             }
