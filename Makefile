@@ -16,7 +16,7 @@ USER_HDR = User.hpp common.hpp
 all: AS user
 
 AS: $(AS_SRC)
-	$(CXX) $(CXXFLAGS) -o AS $(AS_SRC)
+	$(CXX) $(CXXFLAGS) -o AS $(AS_SRC) -pthread
 
 user: $(USER_SRC)
 	$(CXX) $(CXXFLAGS) -o user $(USER_SRC)
