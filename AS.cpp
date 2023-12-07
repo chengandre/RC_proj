@@ -115,6 +115,7 @@ bool createLogin(string &uid, string &pass, bool &no_error) {
         return true;
     }
     cout << "[LOG]: User " + uid << " logged in" << endl;
+    fout.close();
     return true;
 }
 
@@ -171,7 +172,7 @@ bool Register(string &uid, string &pass, bool &no_error) {
     }
     fout << pass;
     cout << "[LOG]: User " + uid + " registered with password " << pass << endl;
-
+    fout.close();
     return true;
 }
 
@@ -187,6 +188,7 @@ void endAuction(string const &aid, bool &no_error) {
         cout << "[LOG]: Couldn't create END AUCTION text file" << endl;
         no_error = false;
     }
+    fout.close();
 }
 
 bool checkAuctionDuration(string const &aid, bool &no_error) {
@@ -196,6 +198,7 @@ bool checkAuctionDuration(string const &aid, bool &no_error) {
     string content;
     vector<string> content_arguments;
     getline(fin, content);
+    fin.close();
 
     parseInput(content, content_arguments);
 
@@ -317,10 +320,13 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             string hostedDir = "USERS/" + uid + "/HOSTED";
+            string loginTxt = "USERS/" + uid + "/" + uid + "_login.txt";
+        
             if (filesystem::is_empty(hostedDir)) {
                 response = "RMA NOK\n";
-            }
-            else {
+            } else if (!exists(loginTxt)) {
+                response = "RMA NLG\n";
+            } else {
                 response = "RMA OK ";
                 string aid;
                 for (auto const &entry : filesystem::directory_iterator(hostedDir)) {
@@ -331,12 +337,122 @@ string handleUDPRequest(char request[]) {
                     } else {
                         response += aid + " 1 ";
                     }
+
+                    if (!no_error) {
+                        break;
+                    }
                 }
+                response += "\n";
             }
             break;
         }
         case MYBIDS: {
+            string uid = request_arguments[1];
+            if (!checkUID(uid)) {
+                syntax = false;
+                break;
+            }
 
+            string biddedDir = "USERS/" + uid + "/BIDDED";
+            string loginTxt = "USERS/" + uid + "/" + uid + "_login.txt";
+            if (filesystem::is_empty(biddedDir)) {
+                response = "RMB NOK\n";
+            } else if (!exists(loginTxt)) {
+                response = "RMB NLG\n";
+            } else {
+                response = "RMB OK ";
+                string aid;
+                for (auto const &entry : filesystem::directory_iterator(biddedDir)) {
+                    aid = getSubString(entry.path().string(), 20, 3);
+                    if (auctionEnded(aid) || !checkAuctionDuration(aid, no_error)) {
+                        // terminou ou ja esta fora de prazo
+                        response += aid + " 0 ";
+                    } else {
+                        response += aid + " 1 ";
+                    }
+
+                    if (!no_error) {
+                        break;
+                    }
+                }
+                response += "\n";
+            }
+            break;
+        }
+        case LIST:{
+            string auctionsDir = "AUCTIONS";
+            if (filesystem::is_empty(auctionsDir)) {
+                response = "RLS NOK\n";
+            } else {
+                response = "RLS OK ";
+                string aid;
+                for (auto const &entry : filesystem::directory_iterator(auctionsDir)) {
+                    aid = getSubString(entry.path().string(), 9, 3);
+                    if (auctionEnded(aid) || !checkAuctionDuration(aid, no_error)) {
+                        // terminou ou ja esta fora de prazo
+                        response += aid + " 0 ";
+                    } else {
+                        response += aid + " 1 ";
+                    }
+
+                    if (!no_error) {
+                        break;
+                    }
+                }
+                response += "\n";
+            }
+            break;
+        }
+        case SHOW_RECORD: {
+            string aid = request_arguments[1];
+            if (!checkAID(aid)) {
+                syntax = false;
+                break;
+            }
+
+            string auctionDir = "AUCTIONS/" + aid;
+            if (!exists(auctionDir)) {
+                response = "RRC NOK\n";
+            } else {
+                response = "RRC OK ";
+                string startTxt = auctionDir + "/START_" + aid + ".txt";
+                ifstream fin(startTxt);
+                if (!fin) {
+                    cout << "[LOG]: Couldn't open start auction text" << endl;
+                    no_error = false;
+                    break;
+                }
+
+                string content;
+                vector<string> content_arguments;
+                getline(fin, content);
+                parseInput(content, content_arguments);
+                fin.close();
+
+                string uid = content_arguments[0];
+                string auction_name = content_arguments[1];
+                string fname = content_arguments[2];
+                string start_value = content_arguments[3];
+                string duration = content_arguments[4];
+                string date = content_arguments[5];
+                string time = content_arguments[6];
+
+                response += uid + " ";
+                response += auction_name + " ";
+                response += fname + " ";
+                response += start_value + " ";
+                response += date + " ";
+                response += time + " ";
+                response += duration;
+
+                string bidsDir = auctionDir + "/BIDS";
+                if (!filesystem::is_empty(bidsDir)) {
+                    for (auto const &entry : filesystem::directory_iterator(bidsDir)) {
+                        ifstream fin(entry);
+                    }
+                }
+            }
+            break;
         }
         default:
             syntax = false;
