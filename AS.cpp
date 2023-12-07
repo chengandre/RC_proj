@@ -29,6 +29,32 @@ bool exists(string& name) {
     return (stat (name.c_str(), &buffer) == 0); 
 }
 
+void removeFile(string &path, bool no_error) {
+    error_code ec;
+    int ret = filesystem::remove(path, ec);
+
+    if (!ec && !ret) {
+        no_error = false;
+    } 
+    else {      
+        no_error = false;
+        cout << "File " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
+    }
+}
+
+void removeDir(string &path, bool no_error) {
+    error_code ec;
+    
+    int ret = filesystem::remove_all(path, ec);
+    if (!ec && ret == 0) {
+        no_error = false;
+    } 
+    else {      
+        no_error = false;
+        cout << "Dir " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
+    }
+}
+
 int parseCommand(string &command) {
     if (command == "LIN") {
         return LOGIN;
@@ -62,15 +88,15 @@ bool checkPassword(string &uid, string &pw, bool &syntax, bool &no_error) {
 
     if (!checkPasswordSyntax(pw)) {
         cout << "[LOG]: Password syntax error" << endl;
-        syntax = false;
-        return;
+        // syntax = false;
+        return true;
     }
 
     ifstream pw_file(fname);
     if (!pw_file) {
         cout << "[LOG]: Couldn't open user password file" << endl;
-        no_error = false;
-        return;
+        // no_error = false;
+        return true;
     }
     
     ostringstream oss;
@@ -78,43 +104,18 @@ bool checkPassword(string &uid, string &pw, bool &syntax, bool &no_error) {
     return oss.str() == pw;
 }
 
-void removeFile(string &path, bool no_error) {
-    error_code ec;
-    int ret = filesystem::remove(path, ec);
-
-    if (!ec && !ret) {
-        no_error = false;
-    } 
-    else {      
-        no_error = false;
-        cout << "File " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
-    }
-}
-
-void removeDir(string &path, bool no_error) {
-    error_code ec;
-    
-    int ret = filesystem::remove_all(path, ec);
-    if (!ec && ret == 0) {
-        no_error = false;
-    } 
-    else {      
-        no_error = false;
-        cout << "Dir " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
-    }
-}
-
-int createLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
+bool createLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
+    // false if incorrect password
     string loginName;
 
     // check uid better
-    if (uid.size() != 6) {
+    if (!checkUID(uid)) {
         cout << "[LOG]: Invalid UID on login" << endl;
         syntax = false;
-        return 0;
-    } else if (!checkPassword(uid, pass)) {
+        return true;
+    } else if (!checkPassword(uid, pass, syntax, no_error)) {
         cout << "[LOG]: Incorrect password" << endl;
-        return -1;
+        return false;
     }
 
     loginName = "USERS/" + uid + "/" + uid + "_login.txt";
@@ -122,13 +123,13 @@ int createLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
     if (!fout) {
         cout << "[LOG]: Couldn't create login file" << endl;
         no_error = false;
-        return 0;
+        return true;
     }
     cout << "[LOG]: User " + uid << " logged in" << endl;
-    return 0;
+    return true;
 }
 
-int removeLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
+bool removeLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
     // 0 if pass is ok, -1 otherwise
     // other errors are carried by syntax and no_error;
     string loginName;
@@ -136,29 +137,34 @@ int removeLogin(string &uid, string &pass, bool &syntax, bool &no_error) {
     if (!checkUID(uid)) {
         cout << "[LOG]: Invalid UID on login" << endl;
         syntax = false;
-        return 0;
+        return true;
     }
-    else if (!checkPassword(uid, pass)) {
+    else if (!checkPassword(uid, pass, syntax, no_error)) {
         cout << "[LOG]: Incorrect password" << endl;
-        return -1;
+        return false;
     }
 
     loginName = "USERS/" + uid + "/" + uid + "_login.txt";
     removeFile(loginName, no_error);
     
-    return 0;
+    return true;
 }
 
-int Register(string &uid, string &pass) {
-    // check uid and pass
+bool Register(string &uid, string &pass, bool &syntax, bool &no_error) {
+    // true if registered, false otherwise
     string userDir, userPass, hostedDir, biddedDir;
     int ret;
+
+    if (!checkUID(uid) || !checkPasswordSyntax(pass)) {
+        syntax = false;
+        return false;
+    }
 
     userDir = "USERS/" + uid;
     ret = mkdir(userDir.c_str(), 0700);
     if (ret == -1) {
         cout << "[LOG]: Couldn't create user directory" << endl;
-        return -1;
+        return false;
     }
 
     hostedDir = userDir + "/HOSTED";
@@ -166,7 +172,7 @@ int Register(string &uid, string &pass) {
     if (ret == -1) {
         cout << "[LOG]: Couldn't create hosted directory upon registration" << endl;
         filesystem::remove_all(userDir);
-        return -1;
+        return false;
     }
 
     biddedDir = userDir + "/BIDDED";
@@ -174,7 +180,7 @@ int Register(string &uid, string &pass) {
     if (ret == -1) {
         cout << "[LOG]: Couldn't create bidded directory upon registration" << endl;
         filesystem::remove_all(userDir);
-        return -1;
+        return false;
     }
 
     userPass = "USERS/" + uid + "/" + uid + "_pass.txt";
@@ -182,12 +188,12 @@ int Register(string &uid, string &pass) {
     if (!fout) {
         cout << "[LOG]: Couldn't create user password file" << endl;
         filesystem::remove_all(userDir);
-        return -1;
+        return false;
     }
     fout << pass;
     cout << "[LOG]: User " + uid + " registered" << endl;
 
-    return 0;
+    return true;
 }
 
 string handleUDPRequest(char request[]) {
@@ -204,8 +210,13 @@ string handleUDPRequest(char request[]) {
         case LOGIN: {
             string uid = request_arguments[1];
             string pass = request_arguments[2];
+            if (!checkUID(uid) || !checkPasswordSyntax(pass)) {
+                syntax = false;
+                break;
+            }
             string loginDir = "USERS/" + uid;
-            if (exists(loginDir)) {
+            string passTxt = loginDir + "/" + uid + "_pass.txt";
+            if (exists(loginDir) && exists(passTxt)) {
                 string loginTxt;
                 loginTxt = loginDir + "/" + uid + "_login.txt";
                 if (exists(loginTxt)) {
@@ -219,17 +230,26 @@ string handleUDPRequest(char request[]) {
                 response = "RLI NOK\n";
             }
             else {
-                Register(uid, pass);
-                createLogin(uid, pass, syntax, no_error);
-                response = "RLI REG\n";
+                if (Register(uid, pass, syntax, no_error)) {
+                    cout << "[LOG]: New user " + uid + " registered" << endl;
+                    response = "RLI REG\n";
+                    if (syntax && no_error) {
+                        createLogin(uid, pass, syntax, no_error);
+                    }
+                }
             }
             break;
         }
         case LOGOUT: {
             string uid = request_arguments[1];
             string pass = request_arguments[2];
+            if (!checkUID(uid) || !checkPasswordSyntax(pass)) {
+                syntax = false;
+                break;
+            }
             string loginDir = "USERS/" + uid;
-            if (exists(loginDir)) {
+            string passTxt = loginDir + "/" + uid + "_pass.txt";
+            if (exists(loginDir) && exists(passTxt)) {
                 string loginTxt;
                 loginTxt = loginDir + "/" + uid + "_login.txt";
                 if (!exists(loginTxt)) {
@@ -240,9 +260,34 @@ string handleUDPRequest(char request[]) {
                 } else {
                     response = "RLI OK\n";
                 }
-                break;
             } else {
                 response = "RLO UNR\n";
+            }
+            break;
+        }
+        case UNREGISTER: {
+            string uid = request_arguments[1];
+            string pass = request_arguments[2];
+            if (!checkUID(uid) || !checkPasswordSyntax(pass)) {
+                syntax = false;
+                break;
+            }
+            string loginDir = "USERS/" + uid;
+            string passTxt = loginDir + "/" + uid + "_pass.txt";
+            if (exists(loginDir) && exists(passTxt)) {
+                string loginTxt = loginDir + "/" + uid + "_login.txt";
+                if (exists(loginTxt)) {
+                    removeFile(loginTxt, no_error);
+                    if (syntax && no_error) {
+                        removeFile(passTxt, no_error);
+                    }
+                } else {
+                    cout << "[LOG]: User not logged in" << endl;
+                    response = "RUR NOK\n";
+                }
+            } else {
+                cout << "[LOG]: User not registered" << endl;
+                response = "RUR UNR\n";
             }
             break;
         }
@@ -483,6 +528,7 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
 void handleTCPRequest(int &fd, SharedAID *sharedAID) {
     cout << "[LOG]: Got one request child " << getpid() << " handling it" << endl;
     string request, tmp;
+    bool syntax, no_error;
     vector<string> request_arguments;
     // char buffer[BUFFERSIZE];
     int request_type;
@@ -506,7 +552,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                 // user not logged in
                 ok = false;
                 return; // maybe we can just return here
-            } else if (!checkPassword(request_arguments[0], request_arguments[1])) {
+            } else if (!checkPassword(request_arguments[0], request_arguments[1], syntax, no_error)) {
                 cout << "[LOG]: Incorrect password" << endl;
                 // incorrect password
                 ok = false;

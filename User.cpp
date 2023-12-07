@@ -136,7 +136,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
     string message;
     switch (request) {
         case LOGIN:
-            if (checkUID(arguments[1]) && checkPassword(arguments[2])) {
+            if (checkUID(arguments[1]) && checkPasswordSyntax(arguments[2])) {
                 message = "LIN " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
 
@@ -170,7 +170,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
                 cout << "User not logged in" << endl;
                 return 0;
             }
-            if (checkUID(arguments[1]) && checkPassword(arguments[2])) {
+            if (checkUID(arguments[1]) && checkPasswordSyntax(arguments[2])) {
                 message = "LOU " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
                 
@@ -190,7 +190,7 @@ int handleUDPRequest(int request, vector<string> arguments) {
             }
             break;
         case UNREGISTER:
-            if (checkUID(arguments[1]) && checkPassword(arguments[2])) {
+            if (checkUID(arguments[1]) && checkPasswordSyntax(arguments[2])) {
                 message = "UNR " + arguments[1] + " " + arguments[2] + "\n";
                 n = sendReceiveUDPRequest(message, message.length());
                 
