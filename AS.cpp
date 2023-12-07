@@ -255,7 +255,7 @@ string handleUDPRequest(char request[]) {
                 if (!exists(loginTxt)) {
                     cout << "[LOG]: User not logged in" << endl;
                     response = "RLO NOK\n";
-                } else if (removeLogin(uid, pass, syntax, no_error) == -1) {
+                } else if (!removeLogin(uid, pass, syntax, no_error)) {
                     response = "RLI NOK\n";
                 } else {
                     response = "RLI OK\n";
