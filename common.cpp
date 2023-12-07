@@ -27,7 +27,7 @@ void parseInput(char *input, vector<string> &inputs) {
 bool checkUID(string &uid) {
     // primeiro digito tem que ser um (foi dito no slack)
     // 6 digitos
-    return all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6 && uid[0] == 1;
+    return all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6 && uid[0] == "1";
 }
 
 bool checkPasswordSyntax(string &pw) {
