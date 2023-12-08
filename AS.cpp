@@ -5,6 +5,7 @@
 // use remove_all to delete everything in a folder
 // add syntax if anything goes wrong change it to false
 // syntax error or error creating/removing files
+// maybe change parseInput to splitString cause it is used in other cases
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child, errcode;
@@ -95,6 +96,7 @@ bool checkPassword(string &uid, string &pw, bool &no_error) {
     
     ostringstream oss;
     oss << pw_file.rdbuf();
+    pw_file.close();
     return oss.str() == pw;
 }
 
@@ -445,10 +447,21 @@ string handleUDPRequest(char request[]) {
                 response += time + " ";
                 response += duration + "\n";
 
+                // 50 maior bids = 50 bids mais recentes?
                 string bidsDir = auctionDir + "/BIDS";
                 if (!filesystem::is_empty(bidsDir)) {
+                    vector<string> bidsPath;
+
                     for (auto const &entry : filesystem::directory_iterator(bidsDir)) {
-                        ifstream fin(entry);
+                        bidsPath.push_back(entry.path().string());
+                    }
+
+                    sort(bidsPath.rbegin(), bidsPath.rend());
+                    int n = min(int(bidsPath.size()), 50);
+                    vector<string> sortedBidsPath(bidsPath.begin(), bidsPath.begin() + n);
+
+                    for (int i = sortedBidsPath.size()-1; i >= 0; i--) {
+                        ifstream fin(sortedBidsPath.at(i));
                         if (!fin) {
                             cout << "[LOG]: Couldn't open bid file on show_record" << endl;
                             no_error = false;
@@ -458,9 +471,46 @@ string handleUDPRequest(char request[]) {
                         parseInput(content, content_arguments);
                         fin.close();
 
+                        string uid = content_arguments[0];
+                        string value = content_arguments[1];
+                        string date = content_arguments[2];
+                        string time = content_arguments[3];
+                        string seconds = content_arguments[4];
                         response += "B ";
-                        
+                        response += uid + " ";
+                        response += value+ " ";
+                        response += date + " ";
+                        response += time + " ";
+                        response += seconds;
+
+                        if (i == 0) {
+                            response += "\n";
+                        } else {
+                            response += " ";
+                        }
                     }
+                }
+
+                string endTxt = auctionDir + "/END_" + aid + ".txt";
+                if (exists(endTxt)) {
+                    ifstream fin(endTxt);
+                    if (!fin) {
+                        cout << "[LOG]: Couldn't open bid file on show_record" << endl;
+                        no_error = false;
+                        break;
+                    }
+                    getline(fin, content);
+                    parseInput(content, content_arguments);
+                    fin.close();
+
+                    string date = content_arguments[0];
+                    string time = content_arguments[1];
+                    string duration = content_arguments[2];
+
+                    response += "E ";
+                    response += date + " ";
+                    response += time + " ";
+                    response += duration + "\n";
                 }
             }
             break;
@@ -473,7 +523,7 @@ string handleUDPRequest(char request[]) {
         response = "Syntax Error\n";
     }
     else if (!no_error) {
-        response = "Error creating/removing file/directory\n";
+        response = "Error opening/creating/removing file/directory\n";
     }
     return response;
 }
