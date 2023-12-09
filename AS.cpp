@@ -195,6 +195,29 @@ void endAuction(string const &aid, bool &no_error) {
     fout.close();
 }
 
+string getTime() {
+    time(&fulltime);
+    stringstream ss;
+    ss << fulltime;
+    
+    return ss.str();
+}
+
+string getDateAndTime() {
+    char time_str[30];
+
+    time(&fulltime);
+    current_time = gmtime(&fulltime);
+    snprintf(time_str, 30, "%4d−%02d−%02d %02d:%02d:%02d",
+            current_time->tm_year + 1900, current_time->tm_mon + 1,current_time->tm_mday, 
+            current_time->tm_hour , current_time->tm_min , current_time->tm_sec);
+
+    stringstream ss;
+    ss << fulltime;
+    
+    return string(time_str) + " " +  ss.str();
+}
+
 bool checkAuctionDuration(string const &aid, bool &no_error) {
     // true if auction duration is ok, false if should be closed
     string startTxt = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
@@ -205,14 +228,10 @@ bool checkAuctionDuration(string const &aid, bool &no_error) {
     fin.close();
 
     parseInput(content, content_arguments);
-
-    time(&fulltime);
-    stringstream ss;
-    ss << fulltime;
     
     string duration = content_arguments[4];
     string start_fulltime = content_arguments.back();
-    string current_fulltime = ss.str();
+    string current_fulltime = getTime();
 
     if (current_fulltime > start_fulltime + duration) {
         endAuction(aid, no_error);
@@ -712,6 +731,8 @@ string getNextAID(SharedAID *sharedAID) {
     return aid;
 }
 
+
+
 int createStartAuctionText(vector<string> &arguments, string &aid) {
     string name, tmp;
     char time_str[30]; // date and time
@@ -721,19 +742,7 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
     tmp += arguments[5] + " "; // fname
     tmp += arguments[3] + " "; // start_value
     tmp += arguments[4] + " "; // time active
-
-    time(&fulltime); // update time in seconds
-    current_time = gmtime(&fulltime);
-    snprintf(time_str, 30, "%4d−%02d−%02d %02d:%02d:%02d",
-            current_time->tm_year + 1900, current_time->tm_mon + 1,current_time->tm_mday, 
-            current_time->tm_hour , current_time->tm_min , current_time->tm_sec);
-    tmp += time_str;
-    tmp += " ";
-    
-    stringstream ss;
-    ss << fulltime;
-    string ts = ss.str();
-    tmp += ts;
+    tmp += getDateAndTime();
 
     name = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
     ofstream fout(name, ios::out);
@@ -745,6 +754,24 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
     fout.close();
 
     return 0;
+}
+
+bool checkOwner(string &uid, string &aid, bool &no_error) {
+    string auctionDir = "AUCTIONS/" + aid;
+    string startTxt = auctionDir + "/START_" + aid + ".txt";
+    char tmp[6];
+
+    ifstream fin(startTxt);
+    if (!fin) {
+        cout << "[LOG]: Error opening file to read" << endl;
+        no_error = false;
+        return true;
+    }
+    fin.read(tmp, 6);
+    fin.close()
+    string targetUID(tmp);
+
+    return uid == targetUID;
 }
 
 void handleTCPRequest(int &fd, SharedAID *sharedAID) {
@@ -795,7 +822,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     ok = false;
                 }
 
-                if (ok) {
+                if (no_error && ok) {
                     // talvez pode-se remover a pasta com tds os ficheiros dentro dela
                     int status;
                     string aid = getNextAID(sharedAID);
@@ -805,7 +832,8 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         break;
                     }
                     status = receiveTCPimage(fd, fsize, request_arguments[5], aid);
-                    if (status == -1) {
+                    receiveTCPsize(fd, 1, tmp); // get the last char which should be \n
+                    if (tmp.at(0) != '\n' || status == -1) {
                         deleteAuctionDir(aid, no_error); // adicionar loop ate confirmar sucesso?
                         response = "ROA NOK\n";
                         break;
@@ -830,8 +858,58 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                 }
                 break;
             }
-            case CLOSE:
+            case CLOSE: {
+                int n = receiveTCPsize(fd, 20, request);
+                if (n < 20 || request.back() != '\n') {
+                    syntax = false;
+                    break;
+                }
+                parseInput(request, request_arguments);
+
+                string uid = request_arguments[0];
+                string pass = request_arguments[1];
+                string aid = request_arguments[2];
+
+                string auctionDir = "AUCTIONS/" + aid;
+                string endTxt = auctionDir + "/END_" + aid + ".txt";
+                if (!checkLogin(uid)) {
+                    cout << "[LOG]: On close User not logged in" << endl;
+                    response = "RCL NLG\n";
+                    break;
+                } else if (!exists(auctionDir)) {
+                    cout << "[LOG]: On close auction does not exist" << endl;
+                    response = "RCL EAU\n";
+                    break;
+                } else if (!exists(endTxt)) {
+                    cout << "[LOG]: On close auction already closed" << endl;
+                    response = "RCL END\n";
+                    break;
+                } else if (!checkOwner(uid, aid, no_error)) {
+                    cout << "[LOG]: On close auction not owned by given uid" << endl;
+                    response = "RCL EOW\n";
+                    break;
+                } else if (no_error && !checkPassword(uid, pass, no_error)) {
+                    cout << "[LOG]: On close uid password don't match" << endl;
+                    response  = "RCL NOK\n";
+                    break;
+                }
+
+                if (no_error) {
+                    string content = getDateAndTime();
+
+                    ofstream fout(endTxt);
+                    if (!fout) {
+                        cout << "[LOG]: Error opening file to write" << endl;
+                        no_error = false;
+                        break;
+                    }
+                    fout << content;
+                    fout.close();
+
+                    response = "RCL OK\n";
+                }
                 break;
+            }
             case SHOW_ASSET:
                 break;
             case BID:
@@ -844,7 +922,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
     }
     
 
-    if (!syntax) {
+    if (!syntax || !no_error) {
         response = "ERR\n";
     }
     // else if (!no_error) {
