@@ -1,13 +1,15 @@
 #include "AS.hpp"
 #include "common.hpp"
-// handle signal child
-// verify if ifstream ofstream have opened correctly
-// use remove_all to delete everything in a folder
+// handle signal child (done)
+// verify if ifstream ofstream have opened correctly (done)
+// use remove_all to delete everything in a folder (prolly done)
 // add syntax if anything goes wrong change it to false
-// syntax error or error creating/removing files
+// syntax error or error creating/removing files (change to try catch)
 // maybe change parseInput to splitString cause it is used in other cases
-// If error or syntax send Err or Syn
+// If error or syntax send Err or Syn (wrong)
 // implement try catch?
+// check auction duration on close, show asset, bid
+// bids always have 6 chars?
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child, errcode;
@@ -630,6 +632,30 @@ int receiveTCPspace(int fd, int size, string &response) {
     return total_received;
 }
 
+int receiveTCPend(int fd, string &response) {
+    int total_received = 0;
+    char tmp[128];
+    int n;
+    response.clear();
+    
+    cout << "[LOG]: Receiving TCP until the end" << endl;
+    while (true) {
+        n = read(fd, tmp, 1);
+        if (n == -1) {
+            cout << "TCP receive error" << endl;
+            break;
+        } else if (tmp[0] == '\n') {
+            break;
+        }
+        concatenateString(response, tmp, n);
+        total_received += n;
+        
+    }
+    cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
+
+    return total_received;
+}
+
 int receiveTCPimage(int fd, int size, string &fname, string &aid) {
     int total_received = 0;
     int n, to_read;
@@ -643,7 +669,6 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid) {
         if (n == -1) {
             cout << "TCP image receive error" << endl;
             fout.close();
-            remove(fname.c_str());
             return -1;
         }
         fout.write(tmp, n);
@@ -681,7 +706,7 @@ bool checkLogin (string &uid) {
     return (stat (tmp.c_str(), &buffer) == 0); 
 }
 
-int createAuctionDir(string &aid) {
+int createAuctionDir(string &aid, bool &no_error) {
     string AID_dirname = "AUCTIONS/" + aid;
     string BIDS_dirname = "AUCTIONS/" + aid + "/BIDS";
     string ASSET_dirname = "AUCTIONS/" + aid + "/ASSET";
@@ -690,18 +715,21 @@ int createAuctionDir(string &aid) {
     ret = mkdir(AID_dirname.c_str(), 0700);
     if (ret == -1) {
         cout << "Error mkdir" << endl;
+        no_error = false;
         return -1;
     }
 
     ret = mkdir(BIDS_dirname.c_str(), 0700);
     if (ret == -1) {
-        rmdir(AID_dirname.c_str());
+        removeDir(AID_dirname, no_error);
+        no_error = false;
         return -1;
     }
 
     ret = mkdir(ASSET_dirname.c_str(), 0700);
     if (ret == -1) {
-        filesystem::remove_all(AID_dirname);
+        removeDir(AID_dirname, no_error);
+        no_error = false;
         return -1;
     }
 
@@ -834,14 +862,18 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     // talvez pode-se remover a pasta com tds os ficheiros dentro dela
                     int status;
                     string aid = getNextAID(sharedAID);
-                    status = createAuctionDir(aid);
+                    status = createAuctionDir(aid, no_error);
+                    if (!no_error) {
+                        break;
+                    }
                     if (status == -1) {
                         response = "ROA NOK\n";
                         break;
                     }
                     status = receiveTCPimage(fd, fsize, request_arguments[5], aid);
-                    receiveTCPsize(fd, 1, tmp); // get the last char which should be \n
-                    if (tmp.at(0) != '\n' || status == -1) {
+                    if (status != -1) {
+                        receiveTCPsize(fd, 1, tmp); // get the last char which should be \n
+                    } else if (tmp.at(0) != '\n' || status == -1) {
                         deleteAuctionDir(aid, no_error); // adicionar loop ate confirmar sucesso?
                         response = "ROA NOK\n";
                         break;
@@ -927,8 +959,19 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
 
                 parseInput(request, request_arguments);
                 string aid = request_arguments[0];
-                string auctionDir = "AUCTIONS/" + aid + "/ASSET";
-                string assetPath = filesystem::directory_iterator(auctionDir)->path().string();
+                string auctionDir = "AUCTIONS/" + aid;
+                if (!checkAID(aid)) {
+                    cout << "[LOG]: On show_asset, aid syntax error" <<  endl;
+                    response = "RSA NOK\n";
+                    break;
+                } else if (!exists(auctionDir)) {
+                    cout << "[LOG]: No auction with such aid" << endl;
+                    response = "RSA NOK\n";
+                    break;
+                }
+
+                string assetDir = "AUCTIONS/" + aid + "/ASSET";
+                string assetPath = filesystem::directory_iterator(assetDir)->path().string();
 
                 string fname = getSubString(assetPath, 19, 24);
 
@@ -942,7 +985,113 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
         }
                 break;
             case BID:{
+                int n = receiveTCPspace(fd, 3, request);
+                if (n < 20) {
+                    syntax = false;
+                    break;
+                }
+                parseInput(request, request_arguments);
+
+                string value;
+                receiveTCPend(fd, value);
+                if (value.size() > 6) {
+                    syntax = false;
+                    break;
+                }
+
+                string uid = request_arguments[0];
+                string pass = request_arguments[1];
+                string aid = request_arguments[2];
+
+                string auctionDir = "AUCTIONS/" + aid;
+                string endTxt = auctionDir + "/END_" + aid + ".txt";
+                if (!checkUID(uid)) {
+                    cout << "[LOG]: On bid, uid syntax error" <<  endl;
+                    response = "RBD NOK\n";
+                    break;
+                } else if (!checkAID(aid)) {
+                    cout << "[LOG]: On bid, aid syntax error" << endl;
+                    response = "RBD NOK\n";
+                    break;
+                } else if (!exists(auctionDir)) {
+                    cout << "[LOG]: On bid, no auction with such aid" << endl;
+                    response = "RBD NOK\n";
+                    break;
+                } else if (exists(endTxt)) {
+                    cout << "[LOG]: On bid, auction already closed" << endl;
+                    response = "RBD NOK\n";
+                    break;
+                } else if (!checkLogin(uid)) {
+                    cout << "[LOG]: On bid, user not logged in" << endl;
+                    response = "RBD NLG\n";
+                    break;
+                }
+
+                string bidsDir = auctionDir + "/BIDS";
+                string highest_value = 0;
+                if (!filesystem::is_empty(bidsDir)) {
+                    vector<string> bidsPath;
+
+                    for (auto const &entry : filesystem::directory_iterator(bidsDir)) {
+                        bidsPath.push_back(entry.path().string());
+                    }
+
+                    sort(bidsPath.rbegin(), bidsPath.rend());
+                    string highestBid = bidsPath.back();
+                    
+                    string content;
+                    vector<string> content_arguments;
+                    ifstream fin(highestBid);
+                    if (!fin) {
+                        cout << "[LOG]: Couldn't open bid file on bid" << endl;
+                        no_error = false;
+                        break;
+                    }
+                    getline(fin, content);
+                    fin.close();
+                    parseInput(content, content_arguments);
+                    string highest_value = content_arguments[1];
+                }
+
+                if (value.compare(highest_value) <= 0) {
+                    cout << "[LOG]: On bid, new bid is not higher than the current highest bid" << endl;
+                    response = "RBD REF\n";
+                    break;
+                }
+
+                char tmp[6];
+                string startTxt = auctionDir + "/START_" + aid + ".txt";
+                ifstream fin(startTxt);
+                if (!fin) {
+                    cout << "[LOG]: Couldn't open bid file on bid" << endl;
+                    no_error = false;
+                    break;
+                }
+                fin.read(tmp, 6);
+                string auctionOwner(tmp);
+
+                if (auctionOwner == uid) {
+                    cout << "[LOG]: On bid, bid on own auction" << endl;
+                    response = "RBD ILG\n";
+                    break;
+                }
+
+                string bidTxt = auctionDir + "/BIDS/" + value + ".txt";
+                ofstream fout(bidTxt);
+                if (!fout) {
+                    cout << "[LOG]: Couldn't open file to write on bid" << endl;
+                    no_error = false;
+                    break;
+                }
+
+                string content = uid + " ";
+                content += value + " ";
+                content += getDateAndTime();
+                fout << content;
+                fout.close();
                 
+                response = "RBD ACC\n";
+
                 break;
             }
             default:

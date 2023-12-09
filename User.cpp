@@ -443,6 +443,7 @@ int handleTCPRequest(int request, vector<string> inputs) {
             }
             break;
         case BID:
+            // check syntax (bid > 0)
             message = "BID " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " " + inputs[2] + "\n";
             n = sendReceiveTCPRequest(message, message.length());
 
