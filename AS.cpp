@@ -768,7 +768,7 @@ bool checkOwner(string &uid, string &aid, bool &no_error) {
         return true;
     }
     fin.read(tmp, 6);
-    fin.close()
+    fin.close();
     string targetUID(tmp);
 
     return uid == targetUID;
