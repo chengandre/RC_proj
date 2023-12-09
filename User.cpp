@@ -61,11 +61,7 @@ int indexSpace(int n_spaces, string &target){
     return i-1;
 }
 
-void concatenateString(string &target, char item[], int size) {
-    for (int i = 0; i < size; i++) {
-        target.push_back(item[i]);
-    }
-}
+
 
 void saveJPG(string &data, string &fname) {
     std::ofstream fout(fname, std::ios::binary);

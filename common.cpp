@@ -94,3 +94,9 @@ string getSubString(string const &target, int start, int size) {
 
     return tmp;
 }
+
+void concatenateString(string &target, char item[], int size) {
+    for (int i = 0; i < size; i++) {
+        target.push_back(item[i]);
+    }
+}

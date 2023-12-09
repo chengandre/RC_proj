@@ -6,6 +6,8 @@
 // add syntax if anything goes wrong change it to false
 // syntax error or error creating/removing files
 // maybe change parseInput to splitString cause it is used in other cases
+// If error or syntax send Err or Syn
+// implement try catch?
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child, errcode;
@@ -516,9 +518,11 @@ string handleUDPRequest(char request[]) {
             break;
         }
         default:
+            cout << "[LOG]: UDP syntax error" << endl;
             syntax = false;
             break;
     }
+    
     if (!syntax) {
         response = "Syntax Error\n";
     }
@@ -560,12 +564,6 @@ void startUDP() {
         if (n_udp == -1) {
             exit(1);
         }
-    }
-}
-
-void concatenateString(string &target, char item[], int size) {
-    for (int i = 0; i < size; i++) {
-        target.push_back(item[i]);
     }
 }
 
@@ -664,8 +662,6 @@ bool checkLogin (string &uid) {
     return (stat (tmp.c_str(), &buffer) == 0); 
 }
 
-
-
 int createAuctionDir(string &aid) {
     string AID_dirname = "AUCTIONS/" + aid;
     string BIDS_dirname = "AUCTIONS/" + aid + "/BIDS";
@@ -693,12 +689,14 @@ int createAuctionDir(string &aid) {
     return 1;
 }
 
-void deleteAuctionDir(string &aid) {
+void deleteAuctionDir(string &aid, bool &no_error) {
     string AID_dirname = "AUCTIONS/" + aid;
-    string BIDS_dirname = "AUCTIONS/" + aid + "/BIDS";
+    removeDir(AID_dirname, no_error);
 
-    rmdir(AID_dirname.c_str());
-    rmdir(BIDS_dirname.c_str());
+    // string BIDS_dirname = "AUCTIONS/" + aid + "/BIDS";
+
+    // rmdir(AID_dirname.c_str());
+    // rmdir(BIDS_dirname.c_str());
 }
 
 string getNextAID(SharedAID *sharedAID) {
@@ -751,102 +749,109 @@ int createStartAuctionText(vector<string> &arguments, string &aid) {
 
 void handleTCPRequest(int &fd, SharedAID *sharedAID) {
     cout << "[LOG]: Got one request child " << getpid() << " handling it" << endl;
-    string request, tmp;
+    string request, tmp, response;
     bool syntax, no_error;
     vector<string> request_arguments;
     // char buffer[BUFFERSIZE];
     int request_type;
     // int n;
+
     receiveTCPsize(fd, 3, tmp);
     request_type = parseCommand(tmp);
     receiveTCPsize(fd, 1, tmp); // clear space
-    switch (request_type) {
-        case OPEN:
-            {
-            receiveTCPspace(fd, 7, request);
-            parseInput(request, request_arguments);
-            cout << "[LOG]: got " + request << endl;
-            ssize_t fsize;
-            stringstream stream(request_arguments[6]);
-            stream >> fsize;
+    if (tmp.at(0) != ' ') {
+        syntax = false;
+    } else {
+        switch (request_type) {
+            case OPEN: {
+                receiveTCPspace(fd, 7, request);
+                parseInput(request, request_arguments);
+                cout << "[LOG]: TCP open request is " + request << endl;
 
-            bool ok = true;
-            if (!checkLogin(request_arguments[0])) {
-                cout << "[LOG]: User not logged in" << endl;;
-                // user not logged in
-                ok = false;
-                return; // maybe we can just return here
-            } else if (!checkPassword(request_arguments[0], request_arguments[1], no_error)) {
-                cout << "[LOG]: Incorrect password" << endl;
-                // incorrect password
-                ok = false;
-            } else if (!checkName(request_arguments[2]) || !checkStartValue(request_arguments[3]) || !checkDuration(request_arguments[4])){
-                //O QUE PRINT??? AQUI???
-                // checking other things' length
-                ok = false;
-            } else{
-                // check if an auction has the same name?
+                ssize_t fsize;
+                stringstream stream(request_arguments[6]);
+                stream >> fsize;
+
+                bool ok = true;
+                if (!checkLogin(request_arguments[0])) {
+                    cout << "[LOG]: User not logged in" << endl;
+                    response = "ROA NLG\n";
+                    ok = false;
+                } else if (!checkName(request_arguments[2])){
+                    cout << "[LOG]: Auction name syntax error" << endl;
+                    response = "ROA NOK\n";
+                    ok = false;
+                } else if (!checkStartValue(request_arguments[3])) {
+                    cout << "[LOG]: Auction start value syntax error" << endl;
+                    response = "ROA NOK\n";
+                    ok = false;
+                } else if (!checkDuration(request_arguments[4])) {
+                    cout << "[LOG]: Auction duration syntax error" << endl;
+                    response = "ROA NOK\n";
+                    ok = false;
+                } else if (!checkPassword(request_arguments[0], request_arguments[1], no_error)) {
+                    cout << "[LOG]: Incorrect password" << endl;
+                    response = "ROA NOK\n";
+                    ok = false;
+                }
+
+                if (ok) {
+                    // talvez pode-se remover a pasta com tds os ficheiros dentro dela
+                    int status;
+                    string aid = getNextAID(sharedAID);
+                    status = createAuctionDir(aid);
+                    if (status == -1) {
+                        response = "ROA NOK\n";
+                        break;
+                    }
+                    status = receiveTCPimage(fd, fsize, request_arguments[5], aid);
+                    if (status == -1) {
+                        deleteAuctionDir(aid, no_error); // adicionar loop ate confirmar sucesso?
+                        response = "ROA NOK\n";
+                        break;
+                    }
+                    status = createStartAuctionText(request_arguments, aid);
+                    if (status == -1) {
+                        deleteAuctionDir(aid, no_error);
+                        response = "ROA NOK\n";
+                        break;
+                    }
+
+                    tmp = "USERS/" + request_arguments[0] + "/HOSTED/" + aid + ".txt"; // create hosted in user folder
+                    ofstream fout(tmp);
+                    if (!fout) {
+                        deleteAuctionDir(aid, no_error);
+                        response = "ROA NOK\n";
+                        break;
+                    }
+                    fout.close();
+                    
+                    response = "ROA OK " + aid + "\n";
+                }
+                break;
             }
-                
-
-                
-
-            if (!ok) {
-                tmp = "ROA NOK\n";
-                sendTCPresponse(fd, tmp, tmp.size());
-            } else {
-                // talvez pode-se remover a pasta com tds os ficheiros dentro dela
-                int status;
-                string aid = getNextAID(sharedAID);
-                status = createAuctionDir(aid);
-                if (status == -1) {
-                    break;
-                }
-                status = receiveTCPimage(fd, fsize, request_arguments[5], aid);
-                if (status == -1) {
-                    deleteAuctionDir(aid); // adicionar loop ate confirmar sucesso?
-                    break;
-                }
-                status = createStartAuctionText(request_arguments, aid);
-                if (status == -1) {
-                    deleteAuctionDir(aid);
-                    string dir = "AUCTIONS/" + aid + "/" + request_arguments[5];
-                    remove(dir.c_str());
-                    break;
-                }
-                tmp = "USERS/" + request_arguments[0] + "/HOSTED/" + aid + ".txt"; // create hosted in user folder
-                ofstream fout(tmp);
-                if (!fout) {
-                    deleteAuctionDir(aid);
-                    string dir = "AUCTIONS/" + aid + "/" + request_arguments[5];
-                    remove(dir.c_str());
-                    dir = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
-                    remove(dir.c_str());
-                    break;
-                }
-                fout.close();
-                
-                tmp = "ROA OK " + aid + "\n";
-                sendTCPresponse(fd, tmp, tmp.size());
-            }
-
-            // check user
-            // and check arguments
-            
-            // open auction
-            // respond to client
-            break;
+            case CLOSE:
+                break;
+            case SHOW_ASSET:
+                break;
+            case BID:
+                break;
+            default:
+                cout << "Syntax error" << endl;
+                syntax = false;
+                break;
         }
-        case CLOSE:
-            break;
-        case SHOW_ASSET:
-            break;
-        case BID:
-            break;
-        default:
-            cout << "Syntax error" << endl;
-            break;
     }
+    
+
+    if (!syntax) {
+        response = "ERR\n";
+    }
+    // else if (!no_error) {
+    //     response = "Error opening/creating/removing file/directory\n";
+    // }
+
+    sendTCPresponse(fd, tmp, tmp.size());
 
     close(fd);
 }

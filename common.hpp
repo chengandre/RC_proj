@@ -43,4 +43,6 @@ void printVectorString(vector<string> &target);
 
 string getSubString(string const&target, int start, int size);
 
+void concatenateString(string &target, char item[], int size);
+
 #endif
