@@ -376,6 +376,7 @@ int handleTCPRequest(int request, vector<string> inputs) {
     vector<string> response;
     switch (request) {
         case OPEN:
+            // check syntax
             // open name asset_fname start_value timeactive
             if (!loggedIn) {
                 cout << "User not logged in" << endl;
@@ -419,7 +420,6 @@ int handleTCPRequest(int request, vector<string> inputs) {
         case SHOW_ASSET:
             message =  "SAS " + inputs[1] + "\n";
             n = sendReceiveTCPRequest(message, message.length());
-            // save the image 
 
             tmp = getSubString(all_response, 0, 7);
             // tmp = all_response.substr(0, 7);

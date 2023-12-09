@@ -35,6 +35,8 @@ bool checkStartValue(string& svalue);
 
 bool checkDuration(string& duration);
 
+bool checkFileName(string &fname);
+
 bool checkFileSize(string &fname);
 
 string openJPG(string fname);

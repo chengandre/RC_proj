@@ -68,7 +68,8 @@ bool checkFileName(string &fname) {
 }
 
 bool checkFileSize(string &fname) {
-    return filesystem::file_size(fname) <= MAXFILESIZE;
+    ssize_t fsize = filesystem::file_size(fname);
+    return 0 < fsize && fsize <= MAXFILESIZE;
 }
 
 string openJPG(string fname) {
@@ -87,7 +88,7 @@ void printVectorString(vector<string> &target) {
 string getSubString(string const &target, int start, int size) {
     string tmp;
     int j = 0;
-    while (j < size) {
+    while (j < size && start+j < target.size()) {
         tmp.push_back(target[start+j]);
         j++;
     }

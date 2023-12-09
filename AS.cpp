@@ -578,7 +578,7 @@ void startUDP() {
 
         response.clear();
         response = handleUDPRequest(buffer);
-        cout << "[LOG]: UDP sending response: " << response << endl;
+        cout << "[LOG]: UDP sending response: " << response;
         n_udp = sendto(fd_udp, response.c_str(), response.length(), 0, (struct sockaddr*) &addr, addrlen);
         if (n_udp == -1) {
             exit(1);
@@ -735,7 +735,6 @@ string getNextAID(SharedAID *sharedAID) {
 
 int createStartAuctionText(vector<string> &arguments, string &aid) {
     string name, tmp;
-    char time_str[30]; // date and time
 
     tmp = arguments[0] + " "; // UID
     tmp += arguments[2] + " "; // Name
@@ -777,7 +776,8 @@ bool checkOwner(string &uid, string &aid, bool &no_error) {
 void handleTCPRequest(int &fd, SharedAID *sharedAID) {
     cout << "[LOG]: Got one request child " << getpid() << " handling it" << endl;
     string request, tmp, response;
-    bool syntax, no_error;
+    bool syntax = true;
+    bool no_error = true;
     vector<string> request_arguments;
     // char buffer[BUFFERSIZE];
     int request_type;
@@ -814,6 +814,14 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     ok = false;
                 } else if (!checkDuration(request_arguments[4])) {
                     cout << "[LOG]: Auction duration syntax error" << endl;
+                    response = "ROA NOK\n";
+                    ok = false;
+                } else if (!checkFileName(request_arguments[5])) {
+                    cout << "[LOG]: File name syntax error" << endl;
+                    response = "ROA NOK\n";
+                    ok = false;
+                } else if (!checkFileSize(request_arguments[5])) {
+                    cout << "[LOG]: File size error" << endl;
                     response = "ROA NOK\n";
                     ok = false;
                 } else if (!checkPassword(request_arguments[0], request_arguments[1], no_error)) {
@@ -910,10 +918,33 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                 }
                 break;
             }
-            case SHOW_ASSET:
+            case SHOW_ASSET: {
+                int n = receiveTCPsize(fd, 4, request);
+                if (n < 4 || request.back() != '\n') {
+                    syntax = false;
+                    break;
+                }
+
+                parseInput(request, request_arguments);
+                string aid = request_arguments[0];
+                string auctionDir = "AUCTIONS/" + aid + "/ASSET";
+                string assetPath = filesystem::directory_iterator(auctionDir)->path().string();
+
+                string fname = getSubString(assetPath, 19, 24);
+
+                ssize_t fsize = filesystem::file_size(assetPath);
+                string fsize_str = to_string(fsize);
+
+                response = "RSA OK ";
+                response += fname + " ";
+                response += fsize_str + " ";
+                response += openJPG(assetPath) + "\n";
+        }
                 break;
-            case BID:
+            case BID:{
+                
                 break;
+            }
             default:
                 cout << "Syntax error" << endl;
                 syntax = false;
@@ -925,11 +956,8 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
     if (!syntax || !no_error) {
         response = "ERR\n";
     }
-    // else if (!no_error) {
-    //     response = "Error opening/creating/removing file/directory\n";
-    // }
 
-    sendTCPresponse(fd, tmp, tmp.size());
+    sendTCPresponse(fd, response, response.size());
 
     close(fd);
 }
