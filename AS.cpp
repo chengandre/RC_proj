@@ -3,12 +3,12 @@
 // handle signal child (done)
 // verify if ifstream ofstream have opened correctly (done)
 // use remove_all to delete everything in a folder (prolly done)
-// add syntax if anything goes wrong change it to false
+// add syntax if anything goes wrong change it to false (change to try catch)
 // syntax error or error creating/removing files (change to try catch)
 // maybe change parseInput to splitString cause it is used in other cases
 // If error or syntax send Err or Syn (wrong)
 // implement try catch?
-// check auction duration on close, show asset, bid
+// check auction duration on close, show asset, bid (done)
 // bids always have 6 chars?
 using namespace std;
 
@@ -38,10 +38,9 @@ void removeFile(string &path, bool no_error) {
     error_code ec;
     int ret = filesystem::remove(path, ec);
 
-    if (!ec && !ret) {
+    if (!ec) {
         no_error = false;
-    } 
-    else {      
+    } else if (!ret) {      
         no_error = false;
         cout << "File " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
     }
@@ -51,10 +50,10 @@ void removeDir(string &path, bool no_error) {
     error_code ec;
     
     int ret = filesystem::remove_all(path, ec);
-    if (!ec && ret == 0) {
+    if (!ec) {
         no_error = false;
     } 
-    else {      
+    else if (!ret) {      
         no_error = false;
         cout << "Dir " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
     }
@@ -319,9 +318,9 @@ string handleUDPRequest(char request[]) {
                     cout << "[LOG]: User not logged in" << endl;
                     response = "RLO NOK\n";
                 } else if (!removeLogin(uid, pass, no_error)) {
-                    response = "RLI NOK\n";
+                    response = "RLO NOK\n";
                 } else {
-                    response = "RLI OK\n";
+                    response = "RLO OK\n";
                 }
             } else {
                 response = "RLO UNR\n";
@@ -679,7 +678,7 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid) {
     string dir = "AUCTIONS/" + aid + "/ASSET/" + fname;
     ofstream fout(dir, ios::binary);
 
-    cout << "[LOG]: Receiving TCP image" << endl;
+    cout << "[LOG]: " << getpid() << " Receiving TCP image" << endl;
     while (total_received < size) {
         to_read = min(128, size-total_received);
         n = read(fd, tmp, to_read);
@@ -766,12 +765,12 @@ void deleteAuctionDir(string &aid, bool &no_error) {
 string getNextAID(SharedAID *sharedAID) {
     // char tmp[10];
     sem_wait(&sharedAID->sem);
-    cout << "1" << endl;
+
     stringstream ss;
     ss << setw(3) << setfill('0') << sharedAID->AID;
     string aid = ss.str();
-    cout << "2" << endl;
     sharedAID->AID++;
+
     sem_post(&sharedAID->sem);
 
     return aid;
@@ -825,9 +824,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
     bool syntax = true;
     bool no_error = true;
     vector<string> request_arguments;
-    // char buffer[BUFFERSIZE];
     int request_type;
-    // int n;
 
     receiveTCPsize(fd, 3, tmp);
     request_type = parseCommand(tmp);
@@ -839,7 +836,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
             case OPEN: {
                 receiveTCPspace(fd, 7, request);
                 parseInput(request, request_arguments);
-                // cout << "[LOG]: TCP open request is " + request << endl;
 
                 ssize_t fsize;
                 stringstream stream(request_arguments[6]);
@@ -878,22 +874,17 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
 
                 
                 if (no_error && ok) {
-                    cout << "TEST2" <<  endl;
                     // talvez pode-se remover a pasta com tds os ficheiros dentro dela
                     int status;
                     string aid = getNextAID(sharedAID);
-                    cout << "TEST2.5" <<  endl;
                     status = createAuctionDir(aid, no_error);
-                    cout << "TEST3" <<  endl;
                     if (!no_error) {
                         break;
                     }
-                    cout << "TEST4" <<  endl;
                     if (status == -1) {
                         response = "ROA NOK\n";
                         break;
                     }
-                    cout << "[LOG]: Just before receiving image" << endl;
                     status = receiveTCPimage(fd, fsize, request_arguments[5], aid);
                     if (status != -1) {
                         receiveTCPsize(fd, 1, tmp); // get the last char which should be \n
@@ -1123,6 +1114,16 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                 content += getDateAndTime();
                 fout << content;
                 fout.close();
+
+                string userBidTxt = "USERS/" + uid + "/BIDDED/" + value + ".txt";
+                fout.open(userBidTxt);
+                if (!fout) {
+                    removeFile(bidTxt, no_error);
+                    cout << "[LOG]: Couldn't create bid file to user" << endl;
+                    no_error = false;
+                    break;
+                }
+                fout.close();
                 
                 response = "RBD ACC\n";
 
@@ -1169,7 +1170,7 @@ void startTCP(SharedAID *sharedAID) {
 
     while (1) {
         addrlen = sizeof(addr);
-        cout << "[LOG]:  starting to accept requests" << endl;
+        cout << "[LOG]: Parent " << getpid() << " starting to accept requests" << endl;
         if ( (tcp_child = accept(fd_tcp, (struct sockaddr*) &addr, &addrlen)) == -1) {
             cout << "TCP accept error" << endl;
             exit(EXIT_FAILURE);
@@ -1186,7 +1187,8 @@ void startTCP(SharedAID *sharedAID) {
             if (shmdt(sharedAID) == -1) {
                 cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
             }
-            //kill child
+            cout << "[LOG]: " << getpid() << " terminating after handling request" << endl; 
+            break;
         }
     }
 }
@@ -1268,7 +1270,7 @@ int main(int argc, char *argv[]) {
     } else {
         signal(SIGINT, SIG_DFL);
         startTCP(sharedAID);
-        
     }
     
+    return 0;
 }

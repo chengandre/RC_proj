@@ -12,11 +12,9 @@ socklen_t addrlen;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
 string hostname, port, input;
-string all_response;
 char buffer[BUFFERSIZE];
 vector<string> inputs, userInfo;
 bool loggedIn = false;
-
 
 int parseCommand(string &command) {
     if (command == "login") {
@@ -70,7 +68,7 @@ void saveJPG(string &data, string &fname) {
     fout.close();
 }
 
-int sendReceiveUDPRequest(string message, int size) {
+int sendReceiveUDPRequest(string &message, int size, string &response) {
     // change to read more from server
     int total_received = 0;
     int total_sent = 0;
@@ -87,7 +85,7 @@ int sendReceiveUDPRequest(string message, int size) {
     cout << "[LOG]: Sent UDP request" << endl;
 
     addrlen = sizeof(addr);
-    all_response.clear();
+    response.clear();
     n = BUFFERSIZE;
     cout << "[LOG]: Receiving UDP response" << endl;
     while (n == BUFFERSIZE) {
@@ -96,221 +94,339 @@ int sendReceiveUDPRequest(string message, int size) {
             cout << "UDP receive error" << endl;
             break;
         }
-        concatenateString(all_response, buffer, n);
+        concatenateString(response, buffer, n);
         total_received += n;
     }
-    cout << "[LOG]: Received UDP response of size " <<  all_response.size() << endl;
+    cout << "[LOG]: Received UDP response of size " <<  response.size() << endl;
 
     return total_received;
     // return number of bytes read
 }
 
-int handleUDPRequest(int request, vector<string> arguments) {
-    int n;
-    vector<string> response;
-    string message;
-    switch (request) {
-        case LOGIN:
-            if (checkUID(arguments[1]) && checkPasswordSyntax(arguments[2])) {
-                message = "LIN " + arguments[1] + " " + arguments[2] + "\n";
-                n = sendReceiveUDPRequest(message, message.length());
+void handleUDPRequest(int request, vector<string> arguments) {
+    string response, message; // response/message to/from server
+    vector<string> response_arguments; // split response from server
 
-                parseInput(all_response, response);
-                if (response[1] == "OK") {
-                    loggedIn = true;
-                    userInfo.push_back(arguments[1]);
-                    userInfo.push_back(arguments[2]);
-                    cout << "Logged in successfully" << endl;
+    switch (request) {
+        case LOGIN: {
+            string uid = arguments[1];
+            string pass = arguments[2];
+            try
+            {
+                if (checkUID(uid) && checkPasswordSyntax(pass)) {
+
+                    message = "LIN " + uid + " " + pass + "\n";
+                    sendReceiveUDPRequest(message, message.size(), response);
+
+                    if (response.size() < 7 || response.size() > 8 || response.back() != '\n') throw -1;
+
+                    parseInput(response, response_arguments);
+
+                    if (response_arguments[0] != "RLI") throw -1;
+
+                    if (response_arguments[1] == "OK") {
+                        loggedIn = true;
+                        userInfo.push_back(uid);
+                        userInfo.push_back(pass);
+                        cout << "Logged in successfully" << endl;
+                    }
+                    else if (response_arguments[1] == "NOK") {
+                        cout << "Incorrect password" << endl;
+                    }
+                    else if (response_arguments[1] == "REG") {
+                        loggedIn = true;
+                        userInfo.push_back(uid);
+                        userInfo.push_back(pass);
+                        cout << "New User registered" << endl;
+                    }
+                    else {
+                        throw -1;
+                    }
+                } else {
+                    throw 0;
                 }
-                else if (response[1] == "NOK") {
-                    cout << "Incorrect password" << endl;
-                }
-                else if (response[1] == "REG") {
-                    loggedIn = true;
-                    userInfo.push_back(arguments[1]);
-                    userInfo.push_back(arguments[2]);
-                    cout << "New User registered" << endl;
-                }
-                else {
+            } catch(int n) {
+                if (n == 0) {
+                    cout << "Syntax error" << endl;
+                } else {
                     cout << "Invalid response from server" << endl;
                 }
-                return 0; // dunno what else to return
-            } else {
-                n = -1;
-                cout << "Syntax error" << endl;
             }
             break;
-        case LOGOUT:
-            if (!loggedIn) {
-                cout << "User not logged in" << endl;
-                return 0;
-            }
-            if (checkUID(arguments[1]) && checkPasswordSyntax(arguments[2])) {
-                message = "LOU " + arguments[1] + " " + arguments[2] + "\n";
-                n = sendReceiveUDPRequest(message, message.length());
-                
-                parseInput(all_response, response);
-                if (response[1] == "OK") {
-                    userInfo.clear();
-                    loggedIn = false;
-                    cout << "Logged out successfully" << endl;
-                } else if (response[1] == "NOK") {
-                    cout << "User not logged in" << endl;
-                } else if (response[1] == "UNR") {
-                    cout << "User is not registered" << endl;
-                }
-            } else {
-                n = -1;
-                cout << "Syntax error" << endl;
-            }
-            break;
-        case UNREGISTER:
-            if (checkUID(arguments[1]) && checkPasswordSyntax(arguments[2])) {
-                message = "UNR " + arguments[1] + " " + arguments[2] + "\n";
-                n = sendReceiveUDPRequest(message, message.length());
-                
-                parseInput(all_response, response);
-                if (response[1] == "OK") {
-                    userInfo.clear();
-                    loggedIn = false;
-                    cout << "User registered successfully" << endl;
-                } else if (response[1] == "NOK") {
-                    cout << "User not logged in" << endl;
-                } else if (response[1] == "UNR") {
-                    cout << "User not registered" << endl;
-                }
-            } else {
-                n = -1;
-                cout << "Syntax error" << endl;
-            }
-            break;
-        case MYAUCTIONS:
-            if (checkUID(arguments[1])) {
-                message = "LMA " + arguments[1] + "\n";
-                n = sendReceiveUDPRequest(message, message.length());
+        }
+        case LOGOUT: {
+            try
+            {
+                if (!loggedIn) throw 1;
 
-                parseInput(all_response, response);
-                if (response[1] == "NOK") {
-                    cout << "User has no ongoing auctions" << endl;
-                } else if (response[1] == "NLG") {
-                    cout << "User not logged in" << endl;
-                } else if (response[1] == "OK") {
-                    cout << "Listing auctions from user " << arguments[1] << ":" << endl;
-                    for (int i = 2; i < response.size() - 1; i += 2) {
-                        cout << "Auction " << response[i] << " ";
-                        if (response[i+1] == "0") {
-                            cout << "Ended" << endl;
-                        } else {
-                            cout << "Ongoing" << endl;
-                        }
-                    }
-                }
-            } else {
-                n = -1;
-                cout << "Syntax error" << endl;
-            }
-            break;
-        case MYBIDS:
-            if (checkUID(arguments[1])) {
-                message = "LMB " + arguments[1] + "\n";
-                n = sendReceiveUDPRequest(message, message.length());
-                
-                parseInput(all_response, response);
-                if (response[1] == "NOK") {
-                    cout << "User has no ongoing bids" << endl;
-                } else if (response[1] == "NLG") {
-                    cout << "User not logged in" << endl;
-                } else if (response[1] == "OK") {
-                    cout << "Listing auctions from user " << arguments[1] << " in which has bidded:" << endl;
-                    for (int i = 2; i < response.size() - 1; i += 2) {
-                        cout << "Auction " << response[i] << " ";
-                        if (response[i+1] == "0") {
-                            cout << "Ended" << endl;
-                        } else {
-                            cout << "Ongoing" << endl;
-                        }
-                    }
-                }
-            } else {
-                n = -1;
-                cout << "Syntax error" << endl;
-            }
-            break;
-        case LIST:
-            message = "LST\n";
-            n = sendReceiveUDPRequest(message, message.length());
-            
-            parseInput(all_response, response);
-            if (response[1] == "NOK") {
-                cout << "No auctions have been started yet" << endl;
-            } else if (response[1] == "OK") {
-                cout << "Listing all auctions:" << endl;
-                for (int i = 2; i < response.size() - 1; i += 2) {
-                    cout << "Auction " << response[i] << " ";
-                    if (response[i+1] == "0") {
-                        cout << "Ended" << endl;
+                string uid = userInfo[0];
+                string pass = userInfo[1];
+
+                if (checkUID(uid) && checkPasswordSyntax(pass)) {
+                    message = "LOU " + uid + " " + pass + "\n";
+                    sendReceiveUDPRequest(message, message.length(), response);
+                    
+                    if (response.size() < 7 || response.size() > 8 || response.back() != '\n') throw -1;
+                    parseInput(response, response_arguments);
+                    if (response_arguments[0] != "RLO") throw -1;
+
+                    if (response_arguments[1] == "OK") {
+                        userInfo.clear();
+                        loggedIn = false;
+                        cout << "Logged out successfully" << endl;
+                    } else if (response_arguments[1] == "NOK") {
+                        cout << "User not logged in" << endl;
+                    } else if (response_arguments[1] == "UNR") {
+                        cout << "User is not registered" << endl;
                     } else {
-                        cout << "Ongoing" << endl;
+                        throw -1;
                     }
+                } else {
+                    throw 0;
+                }
+            }
+            catch(int n)
+            {
+                if (n == 1) {
+                    cout << "User not logged in" << endl;
+                } else if (n == 0) {
+                    cout << "Syntax error" << endl;
+                } else if (n == -1) {
+                    cout << "Invalid response from server" << endl;
                 }
             }
             break;
-        case SHOW_RECORD:
-            if (checkAID(arguments[1])) {
-                message = "SRC " + arguments[1] + "\n";
-                n = sendReceiveUDPRequest(message, message.length());
-                parseInput(all_response, response);
-                if (response[1] == "NOK") {
-                    cout << "No auction has such AID" << endl;
-                } else if (response[1] == "OK") {
-                    cout << "Auction " << arguments[1] << " was started by the user " << response[2] << "." << endl;
-                    cout << "Auction name: " << response[3] << endl;
-                    cout << "Item name: " << response[4] << endl;
-                    cout << "Image name: " << response[5] << endl;
-                    cout << "Starting price: " << response[6] << endl;
-                    cout << "Start date: " << response[7] << endl;
-                    cout << "Time since start: " << response[8] << endl;
+        }
+        case UNREGISTER: {  
+            try
+            {
+                string uid = arguments[1];
+                string pass = arguments[2];
 
-                    int index = 8;
-                    bool end = false;
-                    bool bids = false;
-                    while (!end) {
-                        if (response.size() > index) {
-                            index++;
-                            if (response[index] == "B") {
-                                if (!bids) {
-                                    cout << "Listing bids:" << endl;
-                                }
-                                bids = true;
-                                cout << "Bidder UID: " << response[++index] << endl;
-                                cout << "Bid value: " << response[++index] << endl;
-                                cout << "Bid date: " << response[++index] << endl;
-                                cout << "Bid time: " << response[++index] << endl;
-                                cout << "Bid time relative to auction start: " << response[++index] << endl;
-                            }
-                            else if (response[index] == "E") {
-                                cout << "Auction ended in " << response[++index] << " at ";
-                                cout << response[++index] << endl;
-                                cout << "Auction duration: " << response[++index] << endl;
-                            }
-                        }
-                        else {
-                            end = true;
-                        }
+                if (checkUID(uid) && checkPasswordSyntax(pass)) {
+                    message = "UNR " + uid + " " + pass + "\n";
+                    sendReceiveUDPRequest(message, message.length(), response);
+                    
+                    if (response.size() < 7 || response.size() > 8 || response.back() != '\n') throw -1;
+                    parseInput(response, response_arguments);
+                    if (response_arguments[0] != "RUR") throw -1;
+
+                    if (response_arguments[1] == "OK") {
+                        userInfo.clear();
+                        loggedIn = false;
+                        cout << "User registered successfully" << endl;
+                    } else if (response_arguments[1] == "NOK") {
+                        cout << "User not logged in" << endl;
+                    } else if (response_arguments[1] == "UNR") {
+                        cout << "User not registered" << endl;
+                    } else {
+                        throw -1;
                     }
+                } else {
+                    throw 0;
                 }
-            } else {
-                n = -1;
-                cout << "Syntax error" << endl;
+            }
+            catch(int n)
+            {
+                if (n == 0) {
+                    cout << "Syntax error" << endl;
+                } else if (n == -1) {
+                    cout << "Invalid response from server" << endl;
+                }
             }
             break;
+        }
+        case MYAUCTIONS: {
+            try {
+                string uid = arguments[1];
+                if (checkUID(uid)) {
+                    message = "LMA " + uid + "\n";
+                    sendReceiveUDPRequest(message, message.length(), response);
+
+                    if (response.size() < 7 || response.back() != '\n') throw -1;
+                    parseInput(response, response_arguments);
+                    if (response_arguments[0] != "RMA") throw -1;
+
+                    if (response_arguments[1] == "NOK") {
+                        cout << "User has no ongoing auctions" << endl;
+                    } else if (response_arguments[1] == "NLG") {
+                        cout << "User not logged in" << endl;
+                    } else if (response_arguments[1] == "OK") {
+                        cout << "Listing auctions from user " << response_arguments[1] << ":" << endl;
+                        for (int i = 2; i < response_arguments.size() - 1; i += 2) {
+                            cout << "Auction " << response_arguments[i] << " ";
+                            if (response_arguments[i+1] == "0") {
+                                cout << "Ended" << endl;
+                            } else if (response_arguments[i+1] == "1") {
+                                cout << "Ongoing" << endl;
+                            } else {
+                                throw -1;
+                            }
+                        }
+                    } else {
+                        throw -1;
+                    }
+                } else {
+                    throw 0;
+                }
+            } catch (int n) {
+                if (n == 0) {
+                    cout << "Syntax error" << endl;
+                } else if (n == -1) {
+                    cout << "Invalid response from server" << endl;
+                }
+            }
+            break;
+        }
+        case MYBIDS: {
+            try {
+                string uid = arguments[1];
+                if (checkUID(uid)) {
+                    message = "LMB " + uid + "\n";
+                    sendReceiveUDPRequest(message, message.length(), response);
+                    
+                    if (response.size() < 7 || response.back() != '\n') throw -1;
+                    parseInput(response, response_arguments);
+                    if (response_arguments[0] != "RMB") throw -1;
+
+                    if (response_arguments[1] == "NOK") {
+                        cout << "User has no ongoing bids" << endl;
+                    } else if (response_arguments[1] == "NLG") {
+                        cout << "User not logged in" << endl;
+                    } else if (response_arguments[1] == "OK") {
+                        cout << "Listing auctions from user " << uid << " in which has bidded:" << endl;
+                        for (int i = 2; i < response_arguments.size() - 1; i += 2) {
+                            cout << "Auction " << response_arguments[i] << " ";
+                            if (response_arguments[i+1] == "0") {
+                                cout << "Ended" << endl;
+                            } else if (response_arguments[i+1] == "1") {
+                                cout << "Ongoing" << endl;
+                            } else {
+                                throw -1;
+                            }
+                        }
+                    } else {
+                        throw -1;
+                    }
+                } else {
+                    throw 0;
+                }
+            } catch (int n) {
+                if (n == 0) {
+                    cout << "Syntax error" << endl;
+                } else if (n == -1) {
+                    cout << "Invalid response from server" << endl;
+                }
+            }
+            break;
+        }
+        case LIST: {
+            try {
+                message = "LST\n";
+                sendReceiveUDPRequest(message, message.length(), response);
+                
+                if (response.size() < 7 || response.back() != '\n') throw -1;
+                parseInput(response, response_arguments);
+                if (response_arguments[0] != "RLS") throw -1;
+
+                if (response_arguments[1] == "NOK") {
+                    cout << "No auctions have been started yet" << endl;
+                } else if (response_arguments[1] == "OK") {
+                    cout << "Listing all auctions:" << endl;
+                    for (int i = 2; i < response_arguments.size() - 1; i += 2) {
+                        cout << "Auction " << response_arguments[i] << " ";
+                        if (response_arguments[i+1] == "0") {
+                            cout << "Ended" << endl;
+                        } else if (response_arguments[i+1] == "1") {
+                            cout << "Ongoing" << endl;
+                        } else {
+                            throw -1;
+                        }
+                    }
+                } else {
+                    throw -1;
+                }
+            } catch (int n) {
+                if (n == 0) {
+                    cout << "Syntax error" << endl;
+                } else if (n == -1) {
+                    cout << "Invalid response from server" << endl;
+                }
+            }
+            break;
+        }
+        case SHOW_RECORD: {
+            try {
+                // check each entry? auction names, fnames ..
+                string aid = arguments[1];
+                if (checkAID(aid)) {
+                    message = "SRC " + aid + "\n";
+                    sendReceiveUDPRequest(message, message.length(), response);
+
+                    if (response.size() < 7 || response.back() != '\n') throw -1;
+                    parseInput(response, response_arguments);
+                    if (response_arguments[0] != "RRC") throw -1;
+
+                    if (response_arguments[1] == "NOK") {
+                        cout << "No auction has such AID" << endl;
+                    } else if (response_arguments[1] == "OK") {
+                        cout << "Auction " << aid << " was started by the user " << response_arguments[2] << "." << endl;
+                        cout << "Auction name: " << response_arguments[3] << endl;
+                        cout << "Item name: " << response_arguments[4] << endl;
+                        cout << "Image name: " << response_arguments[5] << endl;
+                        cout << "Starting price: " << response_arguments[6] << endl;
+                        cout << "Start date: " << response_arguments[7] << endl;
+                        cout << "Time since start: " << response_arguments[8] << endl;
+
+                        int index = 8;
+                        bool end = false;
+                        bool bids = false;
+                        while (!end) {
+                            if (response_arguments.size() > index) {
+                                index++;
+                                if (response_arguments[index] == "B") {
+                                    if (!bids) {
+                                        cout << "Listing bids:" << endl;
+                                    }
+                                    bids = true;
+                                    cout << "Bidder UID: " << response_arguments[++index] << endl;
+                                    cout << "Bid value: " << response_arguments[++index] << endl;
+                                    cout << "Bid date: " << response_arguments[++index] << endl;
+                                    cout << "Bid time: " << response_arguments[++index] << endl;
+                                    cout << "Bid time relative to auction start: " << response_arguments[++index] << endl;
+                                }
+                                else if (response_arguments[index] == "E") {
+                                    cout << "Auction ended in " << response_arguments[++index] << " at ";
+                                    cout << response_arguments[++index] << endl;
+                                    cout << "Auction duration: " << response_arguments[++index] << endl;
+                                } else {
+                                    throw -1;
+                                }
+                            }
+                            else {
+                                end = true;
+                            }
+                        }
+                    } else {
+                        throw -1;
+                    }
+                } else {
+                    throw 0;
+                }
+            } catch (int n){
+                if (n == 0) {
+                    cout << "Syntax error" << endl;
+                } else if (n == -1) {
+                    cout << "Invalid response from server" << endl;
+                }
+            }
+            
+            break;
+        }
         default:
-            cout << "Not possible from UDP" << endl;
-            n = -1;
+            cout << "Syntax error" << endl;
             break;
     }
-    
-    return n;
 }
 
 int sendTCPmessage(int const &fd, string &message, int size) {
@@ -320,7 +436,6 @@ int sendTCPmessage(int const &fd, string &message, int size) {
     while (total_sent < size) {
         to_send = min(128, size-total_sent);
         n = write(fd, message.c_str() + total_sent, to_send);
-        cout << "[LOG]: sent " << n << endl; 
         if (n == -1) {
             cout << "TCP send error" << endl;
             return n;
