@@ -187,13 +187,25 @@ bool auctionEnded(string const &aid) {
     return exists(endedTxt);
 }
 
-void endAuction(string const &aid, bool &no_error) {
+void endAuction(string const &aid, bool &no_error, int const &itime) {
     string endTxt = "AUCTIONS/" + aid + "/END_" + aid + ".txt";
     ofstream fout(endTxt);
     if (!fout) {
         cout << "[LOG]: Couldn't create END AUCTION text file" << endl;
         no_error = false;
     }
+
+    char time_str[30];
+    time_t ttime = itime;
+    struct tm *end_time = gmtime(&ttime);
+    snprintf(time_str, 30, "%4d−%02d−%02d %02d:%02d:%02d",
+            end_time->tm_year + 1900, end_time->tm_mon + 1,end_time->tm_mday, 
+            end_time->tm_hour , end_time->tm_min , end_time->tm_sec);
+    
+    string content(time_str);
+    content += " " + to_string(itime);
+    cout << "[LOG]: Auction should've ended, content is " << content << endl;
+    fout << content;
     fout.close();
 }
 
@@ -235,8 +247,12 @@ bool checkAuctionDuration(string const &aid, bool &no_error) {
     string start_fulltime = content_arguments.back();
     string current_fulltime = getTime();
 
-    if (current_fulltime > start_fulltime + duration) {
-        endAuction(aid, no_error);
+    int iduration = stoi(duration);
+    int istart = stoi(start_fulltime);
+    int icurrent = stoi(current_fulltime);
+
+    if (icurrent > istart + iduration) {
+        endAuction(aid, no_error, istart + iduration);
         return false;
     }
     return true;
@@ -663,6 +679,7 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid) {
     string dir = "AUCTIONS/" + aid + "/ASSET/" + fname;
     ofstream fout(dir, ios::binary);
 
+    cout << "[LOG]: Receiving TCP image" << endl;
     while (total_received < size) {
         to_read = min(128, size-total_received);
         n = read(fd, tmp, to_read);
@@ -695,7 +712,7 @@ int sendTCPresponse(int fd, string &message, int size) {
         }
         total_sent += n;
     }
-    cout << "[LOG]: Sent TCP response" << endl;
+    cout << "[LOG]: " << getpid() << " Sent TCP response" << endl;
     return total_sent;
 }
 
@@ -747,15 +764,16 @@ void deleteAuctionDir(string &aid, bool &no_error) {
 }
 
 string getNextAID(SharedAID *sharedAID) {
-    char tmp[4];
-
+    // char tmp[10];
     sem_wait(&sharedAID->sem);
-    //lock_guard<mutex> lock(sharedAID->mutex);
-    snprintf(tmp, 4, "%03d", sharedAID->AID);
+    cout << "1" << endl;
+    stringstream ss;
+    ss << setw(3) << setfill('0') << sharedAID->AID;
+    string aid = ss.str();
+    cout << "2" << endl;
     sharedAID->AID++;
     sem_post(&sharedAID->sem);
 
-    string aid(tmp);
     return aid;
 }
 
@@ -821,7 +839,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
             case OPEN: {
                 receiveTCPspace(fd, 7, request);
                 parseInput(request, request_arguments);
-                cout << "[LOG]: TCP open request is " + request << endl;
+                // cout << "[LOG]: TCP open request is " + request << endl;
 
                 ssize_t fsize;
                 stringstream stream(request_arguments[6]);
@@ -858,18 +876,24 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     ok = false;
                 }
 
+                
                 if (no_error && ok) {
+                    cout << "TEST2" <<  endl;
                     // talvez pode-se remover a pasta com tds os ficheiros dentro dela
                     int status;
                     string aid = getNextAID(sharedAID);
+                    cout << "TEST2.5" <<  endl;
                     status = createAuctionDir(aid, no_error);
+                    cout << "TEST3" <<  endl;
                     if (!no_error) {
                         break;
                     }
+                    cout << "TEST4" <<  endl;
                     if (status == -1) {
                         response = "ROA NOK\n";
                         break;
                     }
+                    cout << "[LOG]: Just before receiving image" << endl;
                     status = receiveTCPimage(fd, fsize, request_arguments[5], aid);
                     if (status != -1) {
                         receiveTCPsize(fd, 1, tmp); // get the last char which should be \n
@@ -920,11 +944,12 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     cout << "[LOG]: On close auction does not exist" << endl;
                     response = "RCL EAU\n";
                     break;
-                } else if (!exists(endTxt)) {
+                } 
+                if (!checkAuctionDuration(aid, no_error) || exists(endTxt)) {
                     cout << "[LOG]: On close auction already closed" << endl;
                     response = "RCL END\n";
                     break;
-                } else if (!checkOwner(uid, aid, no_error)) {
+                } else if (no_error && !checkOwner(uid, aid, no_error)) {
                     cout << "[LOG]: On close auction not owned by given uid" << endl;
                     response = "RCL EOW\n";
                     break;
@@ -969,6 +994,8 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     response = "RSA NOK\n";
                     break;
                 }
+                
+                checkAuctionDuration(aid, no_error);
 
                 string assetDir = "AUCTIONS/" + aid + "/ASSET";
                 string assetPath = filesystem::directory_iterator(assetDir)->path().string();
@@ -982,19 +1009,20 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                 response += fname + " ";
                 response += fsize_str + " ";
                 response += openJPG(assetPath) + "\n";
-        }
                 break;
+            }
             case BID:{
                 int n = receiveTCPspace(fd, 3, request);
                 if (n < 20) {
+                    cout << "[LOG]: Bid request of size < 20" << endl;
                     syntax = false;
                     break;
                 }
                 parseInput(request, request_arguments);
-
                 string value;
                 receiveTCPend(fd, value);
                 if (value.size() > 6) {
+                    cout << "[LOG]: Bid value > 6" << value << endl;
                     syntax = false;
                     break;
                 }
@@ -1017,18 +1045,24 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     cout << "[LOG]: On bid, no auction with such aid" << endl;
                     response = "RBD NOK\n";
                     break;
-                } else if (exists(endTxt)) {
+                } 
+                
+                if (!checkAuctionDuration(aid, no_error) || exists(endTxt)) {
                     cout << "[LOG]: On bid, auction already closed" << endl;
                     response = "RBD NOK\n";
                     break;
-                } else if (!checkLogin(uid)) {
+                } else if (no_error && !checkLogin(uid)) {
                     cout << "[LOG]: On bid, user not logged in" << endl;
                     response = "RBD NLG\n";
                     break;
                 }
 
+                if (!no_error) {
+                    break;
+                }
+
                 string bidsDir = auctionDir + "/BIDS";
-                string highest_value = 0;
+                string highest_value = "0";
                 if (!filesystem::is_empty(bidsDir)) {
                     vector<string> bidsPath;
 
@@ -1036,7 +1070,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         bidsPath.push_back(entry.path().string());
                     }
 
-                    sort(bidsPath.rbegin(), bidsPath.rend());
+                    sort(bidsPath.begin(), bidsPath.end());
                     string highestBid = bidsPath.back();
                     
                     string content;
@@ -1050,7 +1084,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     getline(fin, content);
                     fin.close();
                     parseInput(content, content_arguments);
-                    string highest_value = content_arguments[1];
+                    highest_value = content_arguments[1];
                 }
 
                 if (value.compare(highest_value) <= 0) {
@@ -1106,6 +1140,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
         response = "ERR\n";
     }
 
+    cout << "[LOG]: " << getpid() << " Sending response " << response;
     sendTCPresponse(fd, response, response.size());
 
     close(fd);
@@ -1134,7 +1169,7 @@ void startTCP(SharedAID *sharedAID) {
 
     while (1) {
         addrlen = sizeof(addr);
-        cout << "[LOG]: TCP parent starting to accept requests" << endl;
+        cout << "[LOG]:  starting to accept requests" << endl;
         if ( (tcp_child = accept(fd_tcp, (struct sockaddr*) &addr, &addrlen)) == -1) {
             cout << "TCP accept error" << endl;
             exit(EXIT_FAILURE);
@@ -1151,6 +1186,7 @@ void startTCP(SharedAID *sharedAID) {
             if (shmdt(sharedAID) == -1) {
                 cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
             }
+            //kill child
         }
     }
 }

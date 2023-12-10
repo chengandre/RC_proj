@@ -1,5 +1,8 @@
 // handle signal child
 // remove exit(1)
+// check if read==0
+// verify receicetcpsize
+// cannot send more than 2 opens
 #include "User.hpp"
 #include "common.hpp"
 using namespace std;
@@ -61,8 +64,6 @@ int indexSpace(int n_spaces, string &target){
     return i-1;
 }
 
-
-
 void saveJPG(string &data, string &fname) {
     std::ofstream fout(fname, std::ios::binary);
     fout.write(data.c_str(), data.size());
@@ -97,15 +98,9 @@ int sendReceiveUDPRequest(string message, int size) {
         }
         concatenateString(all_response, buffer, n);
         total_received += n;
-        // for (int i = 0; i < BUFFERSIZE; i++){
-        //     cout << i << "--" << buffer[i] << endl;
-        // }
     }
     cout << "[LOG]: Received UDP response of size " <<  all_response.size() << endl;
-    // n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
-    // if (n == -1) {
-    //     cout << "UDP receive error" << endl;
-    // }
+
     return total_received;
     // return number of bytes read
 }
@@ -318,62 +313,136 @@ int handleUDPRequest(int request, vector<string> arguments) {
     return n;
 }
 
-int sendReceiveTCPRequest(string message, int size) {
-
-    int fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd_tcp == -1) {
-        return fd_tcp;
-    }
-
-    int n;
-    n = connect(fd_tcp, res->ai_addr, res->ai_addrlen);
-    if (n == -1) {
-        return fd_tcp;
-    }
-
+int sendTCPmessage(int const &fd, string &message, int size) {
     cout << "[LOG]: Sending TCP request" << endl;
     int total_sent = 0;
+    int n, to_send;
     while (total_sent < size) {
-        n = write(fd_tcp, message.c_str() + total_sent, size - total_sent);
+        to_send = min(128, size-total_sent);
+        n = write(fd, message.c_str() + total_sent, to_send);
+        cout << "[LOG]: sent " << n << endl; 
         if (n == -1) {
             cout << "TCP send error" << endl;
             return n;
         }
-        total_sent += n;
+        total_sent += n;    
     }
-    cout << "[LOG]: Sent TCP request" << endl;
+    cout << "[LOG]: Sent TCP response" << endl;
+    return total_sent;
+}
 
+int receiveTCPsize(int const &fd, int const &size, string &response) {
     int total_received = 0;
-    all_response.clear();
-    n = BUFFERSIZE;
-    cout << "[LOG]: Receiving TCP response" << endl;
-    while (n == BUFFERSIZE) {
-        sleep(3);
-        n = read(fd_tcp, buffer, BUFFERSIZE);
+    int n;
+    char tmp[128];
+    response.clear();
+    cout << "[LOG]: Receiving TCP request by size" << endl;
+    while (total_received < size) {
+        n = read(fd, tmp, 1);
         if (n == -1) {
             cout << "TCP receive error" << endl;
             break;
         }
-        cout << "[LOG]: tcp buffer received " << n << " bytes" << endl;
-        concatenateString(all_response, buffer, n);
+        concatenateString(response, tmp, n);
         total_received += n;
     }
-    cout << "[LOG]: Received TCP response of size " << total_received << endl;
-    // int n = read(fd_tcp, buffer, BUFFERSIZE);
-    
-    return total_received;
+    cout << "[LOG]: Received response of size " << total_received << endl;
 
-    /* Divide this function into more, one being receiveTCPResponse(int fd, int bytes)
-    start by just reading the bytes necessary to know the response command and status,
-    in handletcprequest check status and ask to read more
-    this is an alternative to sleep(t)*/
+    return total_received;
 }
 
-int handleTCPRequest(int request, vector<string> inputs) {
+int receiveTCPspace(int fd, int size, string &response) {
+    int total_received = 0;
+    int total_spaces = 0;
+    int n;
+    char tmp[128];
+    response.clear();
+    cout << "[LOG]: Receiving TCP request by spaces" << endl;
+    while (total_spaces < size) {
+        n = read(fd, tmp, 1);
+        if (n == -1) {
+            cout << "TCP receive error" << endl;
+            break;
+        }
+        concatenateString(response, tmp, n);
+        total_received += n;
+        if (tmp[0] == ' ') {
+            total_spaces++;
+        }
+    }
+    cout << "[LOG]: Received response of size " << total_received << endl;
+
+    return total_received;
+}
+
+int receiveTCPend(int fd, string &response) {
+    int total_received = 0;
+    int n;
+    char tmp[128];
+    response.clear();
+    
+    cout << "[LOG]: Receiving TCP until the end" << endl;
+    while (true) {
+        n = read(fd, tmp, 1);
+        if (n == -1) {
+            cout << "TCP receive error" << endl;
+            break;
+        } else if (tmp[0] == '\n') {
+            break;
+        }
+        concatenateString(response, tmp, n);
+        total_received += n;
+        
+    }
+    cout << "[LOG]: Received response of size " << total_received << endl;
+
+    return total_received;
+}
+
+int receiveTCPfile(int fd, int size, string &fname) {
+    int total_received = 0;
+    int n, to_read;
+    char tmp[128];
+    ofstream fout(fname, ios::binary);
+
+    while (total_received < size) {
+        to_read = min(128, size-total_received);
+        n = read(fd, tmp, to_read);
+        if (n == -1) {
+            cout << "TCP image receive error" << endl;
+            fout.close();
+            return -1;
+        }
+        fout.write(tmp, n);
+        total_received += n;
+    }
+    cout << "[LOG]: Received file of size " << total_received << " fsize is " << size << endl;
+    fout.close();
+    
+    return total_received;
+    // receive image directly into file
+}
+
+void handleTCPRequest(int request, vector<string> inputs) {
     cout << "Handling TCP Request" << endl;
+
     int n;
     string message, tmp;
-    vector<string> response;
+    vector<string> message_arguments;
+
+    int fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd_tcp == -1) {
+        return;
+    }
+
+    int on = 1;
+    setsockopt(fd_tcp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+
+    n = connect(fd_tcp, res->ai_addr, res->ai_addrlen);
+    if (n == -1) {
+        return;
+    }
+    
     switch (request) {
         case OPEN:
             // check syntax
@@ -384,17 +453,21 @@ int handleTCPRequest(int request, vector<string> inputs) {
             message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " ";
             message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " ";
             tmp = openJPG(inputs[2]);
+            // filesystem::file_size(inputs[2]);
             message += to_string(tmp.size()) + " ";
             message += openJPG(inputs[2]) + "\n";
-            n = sendReceiveTCPRequest(message, message.length());
+            n = sendTCPmessage(fd_tcp, message, message.size());
 
-            parseInput(all_response, response);
-            if (response[1] == "NOK") {
+            n = receiveTCPsize(fd_tcp, 7, message);
+            // n = sendReceiveTCPRequest(message, message.length());
+            parseInput(message, message_arguments);
+            receiveTCPend(fd_tcp, message);
+            if (message_arguments[1] == "NOK") {
                 cout << "Auction could not be started" << endl;
-            } else if (response[1] == "NLG") {
+            } else if (message_arguments[1] == "NLG") {
                 cout << "User not logged in" << endl;
-            } else if (response[1] == "OK") {
-                cout << "Auction created with AID " << response[2] << endl;
+            } else if (message_arguments[1] == "OK") {
+                cout << "Auction created with AID " << message << endl;
             }
             break;
         case CLOSE:
@@ -402,68 +475,102 @@ int handleTCPRequest(int request, vector<string> inputs) {
                 cout << "User not logged in" << endl;
             }
             message = "CLS" + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + "\n";
-            n = sendReceiveTCPRequest(message, message.length());
+            n = sendTCPmessage(fd_tcp, message, message.size());
 
-            parseInput(all_response, response);
-            if (response[1] == "OK") {
+            n = receiveTCPsize(fd_tcp, 7, message);
+
+            // n = sendReceiveTCPRequest(message, message.length());
+
+            parseInput(message, message_arguments);
+            if (message_arguments[1] == "OK") {
                 cout << "Auction created by the user has now been closed" << endl;
-            } else if (response[1] == "NLG") {
+                receiveTCPend(fd_tcp, message);
+            } else if (message_arguments[1] == "NLG") {
                 cout << "User not logged in" << endl;
-            } else if (response[1] == "EAU") {
+                receiveTCPend(fd_tcp, message);
+            } else if (message_arguments[1] == "EAU") {
                 cout << "No auction with such AID" << endl;
-            } else if (response[1] == "EOW") {
+                receiveTCPend(fd_tcp, message);
+            } else if (message_arguments[1] == "EOW") {
                 cout << "User not the owner of auction" << endl;
-            } else if (response[1] == "END") {
+                receiveTCPend(fd_tcp, message);
+            } else if (message_arguments[1] == "END") {
                 cout << "Auction has already been closed" << endl;
+                receiveTCPend(fd_tcp, message);
             }
             break;
         case SHOW_ASSET:
             message =  "SAS " + inputs[1] + "\n";
-            n = sendReceiveTCPRequest(message, message.length());
+            n = sendTCPmessage(fd_tcp, message, message.size());
 
-            tmp = getSubString(all_response, 0, 7);
+            n = receiveTCPsize(fd_tcp, 7, message);
+            parseInput(message, message_arguments);
+            //n = sendReceiveTCPRequest(message, message.length());
+
+            //tmp = getSubString(all_response, 0, 7);
             // tmp = all_response.substr(0, 7);
-            parseInput(tmp, response);
-            if (response[1] == "NOK") {
+            
+            if (message_arguments[1] == "NOK") {
+                receiveTCPend(fd_tcp, message);
                 cout << "Error showing asset" << endl;
-            } else if (response[1] == "OK") {
-                tmp.clear();
-                int space_index = indexSpace(4, all_response);
-                tmp = getSubString(all_response, 0, space_index); // get first 4 inputs
-                //tmp = all_response.substr(0, space_index); // get first 4 inputs
-                parseInput(tmp, response);
-                printVectorString(response);
+            } else if (message_arguments[1] == "OK") {
+                n = receiveTCPspace(fd_tcp, 2, message);
+                parseInput(message, message_arguments);
+
+                string fname = message_arguments[0];
+                string fsize_str = message_arguments[1];
                 ssize_t fsize;
-                stringstream stream(response[3]); // turn size into int
+                stringstream stream(fsize_str); // turn size into int
                 stream >> fsize;
 
-                tmp.clear();
-                tmp = getSubString(all_response, space_index+1, fsize); // get the image from response
-                saveJPG(tmp, response[2]); // save the data into fname
+                n = receiveTCPfile(fd_tcp, fsize, fname);
+                n = receiveTCPend(fd_tcp, message);
+                // check if message == '\n'
+
+                // tmp.clear();
+                // int space_index = indexSpace(4, all_response);
+                // tmp = getSubString(all_response, 0, space_index); // get first 4 inputs
+                // //tmp = all_response.substr(0, space_index); // get first 4 inputs
+                // parseInput(tmp, response);
+                // printVectorString(response);
+                
+
+                // tmp.clear();
+                // tmp = getSubString(all_response, space_index+1, fsize); // get the image from response
+                // saveJPG(tmp, response[2]); // save the data into fname
             }
             break;
         case BID:
             // check syntax (bid > 0)
             message = "BID " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " " + inputs[2] + "\n";
-            n = sendReceiveTCPRequest(message, message.length());
+            n = sendTCPmessage(fd_tcp, message, message.size());
 
-            parseInput(all_response, response);
-            if (response[1] == "NOK") {
+            n = receiveTCPend(fd_tcp, message);
+            if (n != 7) {
+                cout << "Syntax error while receiving response from server, BID" << endl;
+                break;
+            }
+
+            parseInput(message, message_arguments);
+            if (message_arguments[1] == "NOK") {
                 cout << "Given auction is not active" << endl;
-            } else if (response[1] == "ACC") {
+            } else if (message_arguments[1] == "ACC") {
                 cout << "Bid has been accepted" << endl;
-            } else if (response[1] == "REF") {
+            } else if (message_arguments[1] == "REF") {
                 cout << "Bid has been refused" << endl;
-            } else if (response[1] == "ILG") {
+            } else if (message_arguments[1] == "ILG") {
                 cout << "Cannot bid in an auction hosted by the user" << endl;
             }  
             break;
         default:
-            cout << "Not possible" << endl;
+            cout << "Syntax Error" << endl;
             n = -1;
             break;
     }
-    return n;
+    
+    close(fd_tcp);
+    cout << "[LOG]: closed tcp connection" <<  endl;
+    return;
 }
 
 int main(int argc, char *argv[]) {

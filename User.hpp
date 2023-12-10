@@ -12,6 +12,7 @@
 #include <sstream>
 #include <algorithm>
 #include <fstream>
+#include <filesystem>
 
 #define DEFAULT_HOSTNAME "localhost"
 #define DEFAULT_PORT "58030"
