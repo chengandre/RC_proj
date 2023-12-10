@@ -200,8 +200,10 @@ void handleUDPRequest(int request, vector<string> arguments) {
         case UNREGISTER: {  
             try
             {
-                string uid = arguments[1];
-                string pass = arguments[2];
+                if (!loggedIn) throw 1;
+
+                string uid = userInfo[0];
+                string pass = userInfo[1];
 
                 if (checkUID(uid) && checkPasswordSyntax(pass)) {
                     message = "UNR " + uid + " " + pass + "\n";
@@ -228,7 +230,9 @@ void handleUDPRequest(int request, vector<string> arguments) {
             }
             catch(int n)
             {
-                if (n == 0) {
+                if (n == 1) {
+                    cout << "User not logged in" << endl;
+                } else if (n == 0) {
                     cout << "Syntax error" << endl;
                 } else if (n == -1) {
                     cout << "Invalid response from server" << endl;
