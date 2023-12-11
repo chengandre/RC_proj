@@ -1,5 +1,6 @@
 #include "AS.hpp"
 #include "common.hpp"
+// -2 for no_error throw
 // handle signal child (done)
 // verify if ifstream ofstream have opened correctly (done)
 // use remove_all to delete everything in a folder (prolly done)
@@ -38,11 +39,17 @@ void removeFile(string &path, bool no_error) {
     error_code ec;
     int ret = filesystem::remove(path, ec);
 
-    if (!ec) {
+    if (!ec) { 
+        if (!ret) {
+            cout<< "[LOG]: File didn't exist\n" << endl;
+            no_error = false;
+            throw -2;  
+        }
+    } 
+    else {  
+        cout << "[LOG]: File " << path << " removed unsuccessful: " << ec.value() << " " << ec.message() << endl;
         no_error = false;
-    } else if (!ret) {      
-        no_error = false;
-        cout << "File " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
+        throw -2;
     }
 }
 
@@ -50,12 +57,17 @@ void removeDir(string &path, bool no_error) {
     error_code ec;
     
     int ret = filesystem::remove_all(path, ec);
-    if (!ec) {
-        no_error = false;
+    if (!ec) { 
+        if (!ret) {
+            cout<< "[LOG]: File didn't exist\n" << endl;
+            no_error = false;
+            throw -2;  
+        }
     } 
-    else if (!ret) {      
+    else {  
+        cout << "[LOG]: File " << path << " removed unsuccessful: " << ec.value() << " " << ec.message() << endl;
         no_error = false;
-        cout << "Dir " << path << " remove unsuccessful: "<< ec.value() << " " <<ec.message() << endl;
+        throw -2;
     }
 }
 
@@ -94,7 +106,8 @@ bool checkPassword(string &uid, string &pw, bool &no_error) {
     if (!pw_file) {
         cout << "[LOG]: Couldn't open user password file" << endl;
         no_error = false;
-        return true;
+        throw -2;
+        // return true;
     }
     
     ostringstream oss;
@@ -117,6 +130,7 @@ bool createLogin(string &uid, string &pass, bool &no_error) {
     if (!fout) {
         cout << "[LOG]: Couldn't create login file" << endl;
         no_error = false;
+        throw -2;
         return true;
     }
     cout << "[LOG]: User " + uid << " logged in" << endl;
@@ -148,7 +162,9 @@ bool Register(string &uid, string &pass, bool &no_error) {
     userDir = "USERS/" + uid;
     ret = mkdir(userDir.c_str(), 0700);
     if (ret == -1) {
+        no_error = false;
         cout << "[LOG]: Couldn't create user directory" << endl;
+        throw -2;
         return false;
     }
 
@@ -192,6 +208,7 @@ void endAuction(string const &aid, bool &no_error, int const &itime) {
     if (!fout) {
         cout << "[LOG]: Couldn't create END AUCTION text file" << endl;
         no_error = false;
+        throw -2;
     }
 
     char time_str[30];
