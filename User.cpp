@@ -1,8 +1,4 @@
-// handle signal child
-// remove exit(1)
 // check if read==0
-// verify receicetcpsize
-// cannot send more than 2 opens
 // listing function so that they add to a buffer and print everything in the end
 #include "User.hpp"
 #include "common.hpp"
@@ -70,7 +66,6 @@ void saveJPG(string &data, string &fname) {
 }
 
 void sendReceiveUDPRequest(string &message, int size, string &response) {
-    // change to read more from server
     //int total_received = 0;
     int total_sent = 0;
     int n;
@@ -79,8 +74,6 @@ void sendReceiveUDPRequest(string &message, int size, string &response) {
         n = sendto(fd_udp, message.c_str() + total_sent, size - total_sent, 0, res->ai_addr, res->ai_addrlen);
         if (n == -1) {
             throw string("Error sending message through UDP socket");
-            // cout << "UDP send error" << endl;
-            // return n;
         }
         total_sent += n;
     }
@@ -94,8 +87,6 @@ void sendReceiveUDPRequest(string &message, int size, string &response) {
         n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n == -1) {
             throw string("Error receiving message through UDP socket");
-            // cout << "UDP receive error" << endl;
-            // break;
         }
         concatenateString(response, buffer, n);
         //total_received += n;
@@ -103,15 +94,13 @@ void sendReceiveUDPRequest(string &message, int size, string &response) {
     cout << "[LOG]: Received UDP response of size " <<  response.size() << endl;
 
     // return total_received;
-    // return number of bytes read
 }
 
 void handleUDPRequest(int request, vector<string> arguments) {
     string response, message; // response/message to/from server
     vector<string> response_arguments; // split response from server
 
-    try
-    {
+    try {
         switch (request) {
             case LOGIN: {
                 string uid = arguments[1];
@@ -455,8 +444,6 @@ int sendTCPmessage(int const &fd, string &message, int size) {
         n = write(fd, message.c_str() + total_sent, to_send);
         if (n == -1) {
             throw string("Error while reading from TCP socket");
-            // cout << "TCP send error" << endl;
-            // return n;
         }
         total_sent += n;    
     }
@@ -474,8 +461,6 @@ int receiveTCPsize(int const &fd, int const &size, string &response) {
         n = read(fd, tmp, 1);
         if (n == -1) {
             throw string("Error while reading from TCP socket");
-            // cout << "TCP receive error" << endl;
-            // break;
         }
         concatenateString(response, tmp, n);
         total_received += n;
@@ -496,8 +481,6 @@ int receiveTCPspace(int fd, int size, string &response) {
         n = read(fd, tmp, 1);
         if (n == -1) {
             throw string("Error while reading from TCP socket");
-            // cout << "TCP receive error" << endl;
-            // break;
         }
         concatenateString(response, tmp, n);
         total_received += n;
@@ -521,8 +504,6 @@ int receiveTCPend(int fd, string &response) {
         n = read(fd, tmp, 1);
         if (n == -1) {
             throw string("Error while reading from TCP socket");
-            // cout << "TCP receive error" << endl;
-            // break;
         } else if (tmp[0] == '\n') {
             break;
         }
@@ -547,9 +528,6 @@ int receiveTCPfile(int fd, int size, string &fname) {
         if (n == -1) {
             fout.close();
             throw string("Error while reading from TCP socket");
-            // cout << "TCP image receive error" << endl;
-            // fout.close();
-            // return -1;
         }
         fout.write(tmp, n);
         total_received += n;
@@ -576,6 +554,27 @@ void handleTCPRequest(int request, vector<string> inputs) {
     int on = 1;
     setsockopt(fd_tcp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
+    struct timeval timeout;
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+    if (setsockopt(fd_tcp, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
+        cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
+        int ret;
+        do {
+            ret = close(fd_tcp);
+        } while (ret == -1 && errno == EINTR);
+        exit(EXIT_FAILURE);
+    }
+
+    if (setsockopt(fd_tcp, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
+        cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
+        int ret;
+        do {
+            ret = close(fd_tcp);
+        } while (ret == -1 && errno == EINTR);
+        exit(EXIT_FAILURE);
+    }
+
     n = connect(fd_tcp, res->ai_addr, res->ai_addrlen);
     if (n == -1) {
         return;
@@ -584,8 +583,6 @@ void handleTCPRequest(int request, vector<string> inputs) {
     try{
         switch (request) {
             case OPEN: {
-                // check syntax
-                // open name asset_fname start_value timeactive
                 if (!loggedIn) throw string("User not logged in");
 
                 string auction_name = inputs[1];
@@ -704,7 +701,6 @@ void handleTCPRequest(int request, vector<string> inputs) {
 
                     n = receiveTCPfile(fd_tcp, fsize, fname);
                     n = receiveTCPend(fd_tcp, message);
-                    // check if message == '\n' (prolly not necessary if timeout on receivetcpend)
                 }
                 break;
             }
@@ -779,7 +775,28 @@ int main(int argc, char *argv[]) {
 
     fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd_udp == -1) {
-        exit(1);
+        exit(EXIT_FAILURE);
+    }
+
+    struct timeval timeout;
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+    if (setsockopt(fd_udp, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
+        cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
+        int ret;
+        do {
+            ret = close(fd_udp);
+        } while (ret == -1 && errno == EINTR);
+        exit(EXIT_FAILURE);
+    }
+
+    if (setsockopt(fd_udp, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
+        cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
+        int ret;
+        do {
+            ret = close(fd_udp);
+        } while (ret == -1 && errno == EINTR);
+        exit(EXIT_FAILURE);
     }
     
     memset(&hints, 0, sizeof(hints));
@@ -792,11 +809,11 @@ int main(int argc, char *argv[]) {
     int errcode = getaddrinfo(hostname.c_str(), port.c_str(), &hints, &res);
     if (errcode != 0) {
         cout << gai_strerror(errcode);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     
     // loop to receive commands
-    while (1) {
+    while (true) {
         cout << "> ";
         getline(cin, input);
         parseInput(input, inputs);
