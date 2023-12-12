@@ -212,8 +212,8 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 break;
             }
             case MYAUCTIONS: {
-                string uid = arguments[1];
-                checkUID(uid);
+                if (!loggedIn) throw string("User not logged in");
+                string uid = userInfo[0];
 
                 message = "LMA " + uid + "\n";
                 sendReceiveUDPRequest(message, message.length(), response);
@@ -231,17 +231,19 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 } else if (response_arguments[1] == "NLG") {
                     cout << "User not logged in" << endl;
                 } else if (response_arguments[1] == "OK") {
-                    cout << "Listing auctions from user " << response_arguments[1] << ":" << endl;
+                    string to_print;
+                    to_print += "Listing auctions from user " + uid + ":\n";
                     for (int i = 2; i < response_arguments.size() - 1; i += 2) {
-                        cout << "Auction " << response_arguments[i] << " ";
+                        to_print += "Auction " + response_arguments[i] + " ";
                         if (response_arguments[i+1] == "0") {
-                            cout << "Ended" << endl;
+                            to_print += "Ended\n";
                         } else if (response_arguments[i+1] == "1") {
-                            cout << "Ongoing" << endl;
+                            to_print += "Ongoing\n";
                         } else {
-                            throw string("Invalid response from serveer");
+                            throw string("Invalid response from server");
                         }
                     }
+                    cout << to_print;
                 } else if (response_arguments[1] == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
@@ -250,8 +252,8 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 break;
             }
             case MYBIDS: {
-                string uid = arguments[1];
-                checkUID(uid);
+                if (!loggedIn) throw string("User not logged in");
+                string uid = userInfo[0];
 
                 message = "LMB " + uid + "\n";
                 sendReceiveUDPRequest(message, message.length(), response);
@@ -269,17 +271,19 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 } else if (response_arguments[1] == "NLG") {
                     cout << "User not logged in" << endl;
                 } else if (response_arguments[1] == "OK") {
-                    cout << "Listing auctions from user " << uid << " in which has bidded:" << endl;
+                    string to_print;
+                    to_print += "Listing auctions from user " + uid + " in which has bidded:\n";
                     for (int i = 2; i < response_arguments.size() - 1; i += 2) {
-                        cout << "Auction " << response_arguments[i] << " ";
+                        to_print += "Auction " + response_arguments[i] + " ";
                         if (response_arguments[i+1] == "0") {
-                            cout << "Ended" << endl;
+                            to_print += "Ended\n";
                         } else if (response_arguments[i+1] == "1") {
-                            cout << "Ongoing" << endl;
+                            to_print += "Ongoing\n";
                         } else {
                             throw string("Invalid response from server");
                         }
                     }
+                    cout << to_print;
                 } else if (response_arguments[1] == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
@@ -302,17 +306,19 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 if (response_arguments[1] == "NOK") {
                     cout << "No auctions have been started yet" << endl;
                 } else if (response_arguments[1] == "OK") {
-                    cout << "Listing all auctions:" << endl;
+                    string to_print;
+                    to_print += "Listing all auctions:\n";
                     for (int i = 2; i < response_arguments.size() - 1; i += 2) {
-                        cout << "Auction " << response_arguments[i] << " ";
+                        to_print += "Auction " + response_arguments[i] + " ";
                         if (response_arguments[i+1] == "0") {
-                            cout << "Ended" << endl;
+                            to_print += "Ended\n";
                         } else if (response_arguments[i+1] == "1") {
-                            cout << "Ongoing" << endl;
+                            to_print += "Ongoing\n";
                         } else {
                             throw string("Invalid response from server");
                         }
                     }
+                    cout << to_print;
                 } else if (response_arguments[1] == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
@@ -338,6 +344,8 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 if (response_arguments[1] == "NOK") {
                     cout << "No auction has such AID" << endl;
                 } else if (response_arguments[1] == "OK") {
+                    string to_print;
+
                     string uid = response_arguments[2];
                     string auction_name = response_arguments[3];
                     string fname = response_arguments[4];
@@ -349,17 +357,17 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     checkName(auction_name);
                     checkFileName(fname);
                     checkStartValue(start_value);
-                    checkDate(date);
+                    // checkDate(date);
                     checkHour(hour);
                     checkDuration(duration);
 
-                    cout << "Auction " << aid << " was started by the user " << uid << "." << endl;
-                    cout << "Auction name: " << auction_name << endl;
-                    cout << "File name: " << fname << endl;
-                    cout << "Starting price: " << start_value << endl;
-                    cout << "Start date: " << date << endl;
-                    cout << "Start hour: " << hour << endl;
-                    cout << "Duration: " << duration << endl;
+                    to_print += "Auction " + aid + " was started by the user " + uid + ".\n";
+                    to_print += "Auction name: " + auction_name + "\n";
+                    to_print += "File name: " + fname + "\n";
+                    to_print += "Starting price: " + start_value + "\n";
+                    to_print += "Start date: " + date + "\n";
+                    to_print += "Start hour: " + hour + "\n";
+                    to_print += "Duration: " + duration + "\n";
 
                     int index = 8;
                     bool end = false;
@@ -387,29 +395,27 @@ void handleUDPRequest(int request, vector<string> arguments) {
                                 bid_duration = response_arguments[++index];
                                 checkUID(bid_uid);
                                 checkStartValue(bid_value);
-                                checkDate(bid_date);
+                                //checkDate(bid_date);
                                 checkHour(bid_hour);
                                 checkDuration(bid_duration);
 
-                                cout << "Bidder UID: " << bid_uid << endl;
-                                cout << "Bid value: " << bid_value << endl;
-                                cout << "Bid date: " << bid_date << endl;
-                                cout << "Bid hour: " << bid_hour << endl;
-                                cout << "Bid duration: " << bid_duration << endl;
+                                to_print += "Bidder UID: " + bid_uid + "\n";
+                                to_print += "Bid value: " + bid_value + "\n";
+                                to_print += "Bid date: " + bid_date + "\n";
+                                to_print += "Bid hour: " + bid_hour + "\n";
+                                to_print += "Bid duration: " + bid_duration + "\n";
                             }
                             else if (response_arguments[index] == "E") {
                                 end_date = response_arguments[++index];
                                 end_hour = response_arguments[++index];
                                 end_duration = response_arguments[++index];
-                                checkDate(end_date);
+                                //checkDate(end_date);
                                 checkHour(end_hour);
                                 checkDuration(end_duration);
 
-                                cout << "Auction ended in " << end_date << " at ";
-                                cout << end_hour << endl;
-                                cout << "Auction duration: " << end_duration << endl;
+                                to_print += "Auction ended in " + end_date + " at " + end_hour + "\n";
+                                to_print += "Auction duration: " + end_duration + "\n";
                             } else {
-                                cout << "size " << response_arguments.size() << " index " << index;
                                 throw string("Invalid response from server");
                             }
                         }
@@ -417,6 +423,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                             end = true;
                         }
                     }
+                    cout << to_print;
                 } else if (response_arguments[1] == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
@@ -632,7 +639,7 @@ void handleTCPRequest(int request, vector<string> inputs) {
                 string aid = inputs[1];
                 checkAID(aid);
 
-                message = "CLS" + userInfo[0] + " " + userInfo[1] + " " + aid + "\n";
+                message = "CLS " + userInfo[0] + " " + userInfo[1] + " " + aid + "\n";
 
                 sendTCPmessage(fd_tcp, message, message.size());
 
@@ -647,7 +654,6 @@ void handleTCPRequest(int request, vector<string> inputs) {
 
                 if (message_arguments[1] == "OK") {
                     cout << "Auction created by the user has now been closed" << endl;
-                    receiveTCPend(fd_tcp, message);
                 } else if (message_arguments[1] == "NLG") {
                     cout << "User not logged in" << endl;
                     receiveTCPend(fd_tcp, message);

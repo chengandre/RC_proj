@@ -4,6 +4,7 @@
 // remove sigint handler
 // maybe change parseInput to splitString cause it is used in other cases
 // bids always have 6 chars? (not necessary?)
+// sort listing
 
 using namespace std;
 
@@ -445,11 +446,13 @@ string handleUDPRequest(char request[]) {
                 response = "RRC ";
                 string aid = request_arguments[1];
                 checkAID(aid);
-
+                
                 string auctionDir = "AUCTIONS/" + aid;
                 if (!exists(auctionDir)) {
                     response += "NOK\n";
                 } else {
+                    checkAuctionDuration(aid);
+
                     response += "OK ";
 
                     string startTxt = auctionDir + "/START_" + aid + ".txt";
@@ -825,9 +828,8 @@ bool checkOwner(string &uid, string &aid) {
     }
     fin.read(tmp, 6);
     fin.close();
-    string targetUID(tmp);
 
-    return uid == targetUID;
+    return strcmp(uid.c_str(), tmp);
 }
 
 void handleTCPRequest(int &fd, SharedAID *sharedAID) {

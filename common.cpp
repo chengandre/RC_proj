@@ -100,7 +100,6 @@ void checkDate(string &date) {
     } else if (date.at(4) != '-' || date.at(7) != '-') {
         throw string("Invalid date");
     }
-
     for (int i = 1; i < date.size(); i++) {
         if (i != 4 && i != 7) {
             if (!isdigit(date.at(i))) {
