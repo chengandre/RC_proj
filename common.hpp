@@ -39,6 +39,10 @@ void checkFileName(string &fname);
 
 void checkFileSize(string &fname);
 
+void checkDate(string &date);
+
+void checkHour(string &hour);
+
 string openJPG(string fname);
 
 void printVectorString(vector<string> &target);

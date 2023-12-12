@@ -94,6 +94,44 @@ void checkFileSize(string &fsize_str) {
     }
 }
 
+void checkDate(string &date) {
+    if (date.at(0) != '1' || date.at(0) != '2') {
+        throw string("Invalid date");
+    } else if (date.at(4) != '-' || date.at(7) != '-') {
+        throw string("Invalid date");
+    }
+
+    for (int i = 1; i < date.size(); i++) {
+        if (i != 4 && i != 7) {
+            if (!isdigit(date.at(i))) {
+                throw string("Invalid date");
+            }
+        }
+    }
+}
+
+void checkHour(string &hour) {
+    if (hour.at(2) != ':' || hour.at(5) != ':') {
+        throw string("Invalid hour");
+    } else {
+        string str_hours = getSubString(hour, 0, 2);
+        string str_minutes = getSubString(hour, 3, 2);
+        string str_seconds = getSubString(hour, 6, 2);
+
+        int hours = stoi(str_hours);
+        int minutes= stoi(str_minutes);
+        int seconds = stoi(str_seconds);
+
+        if (hours < 0 || hours > 23) {
+            throw string("Invalid hour");
+        } else if (minutes < 0 || minutes > 59) {
+            throw string("Invalid hour");
+        } else if (seconds < 0 || seconds > 59) {
+            throw string("Invalid hour");
+        }
+    }
+}
+
 string openJPG(string fname) {
     ifstream fin(fname, ios::binary);
     if (!fin) {

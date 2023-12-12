@@ -3,6 +3,7 @@
 // check if read==0
 // verify receicetcpsize
 // cannot send more than 2 opens
+// listing function so that they add to a buffer and print everything in the end
 #include "User.hpp"
 #include "common.hpp"
 using namespace std;
@@ -68,17 +69,18 @@ void saveJPG(string &data, string &fname) {
     fout.close();
 }
 
-int sendReceiveUDPRequest(string &message, int size, string &response) {
+void sendReceiveUDPRequest(string &message, int size, string &response) {
     // change to read more from server
-    int total_received = 0;
+    //int total_received = 0;
     int total_sent = 0;
     int n;
     cout << "[LOG]: Sending UDP request" << endl;
     while (total_sent < size) {
         n = sendto(fd_udp, message.c_str() + total_sent, size - total_sent, 0, res->ai_addr, res->ai_addrlen);
         if (n == -1) {
-            cout << "UDP send error" << endl;
-            return n;
+            throw string("Error sending message through UDP socket");
+            // cout << "UDP send error" << endl;
+            // return n;
         }
         total_sent += n;
     }
@@ -91,15 +93,16 @@ int sendReceiveUDPRequest(string &message, int size, string &response) {
     while (n == BUFFERSIZE) {
         n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n == -1) {
-            cout << "UDP receive error" << endl;
-            break;
+            throw string("Error receiving message through UDP socket");
+            // cout << "UDP receive error" << endl;
+            // break;
         }
         concatenateString(response, buffer, n);
-        total_received += n;
+        //total_received += n;
     }
     cout << "[LOG]: Received UDP response of size " <<  response.size() << endl;
 
-    return total_received;
+    // return total_received;
     // return number of bytes read
 }
 
@@ -107,231 +110,205 @@ void handleUDPRequest(int request, vector<string> arguments) {
     string response, message; // response/message to/from server
     vector<string> response_arguments; // split response from server
 
-    switch (request) {
-        case LOGIN: {
-            string uid = arguments[1];
-            string pass = arguments[2];
-            try
-            {
-                if (checkUID(uid) && checkPasswordSyntax(pass)) {
+    try
+    {
+        switch (request) {
+            case LOGIN: {
+                string uid = arguments[1];
+                string pass = arguments[2];
 
-                    message = "LIN " + uid + " " + pass + "\n";
-                    sendReceiveUDPRequest(message, message.size(), response);
+                checkUID(uid);
+                checkPasswordSyntax(pass);
 
-                    if (response.size() < 7 || response.size() > 8 || response.back() != '\n') throw -1;
+                message = "LIN " + uid + " " + pass + "\n";
+                sendReceiveUDPRequest(message, message.size(), response);
 
-                    parseInput(response, response_arguments);
-
-                    if (response_arguments[0] != "RLI") throw -1;
-
-                    if (response_arguments[1] == "OK") {
-                        loggedIn = true;
-                        userInfo.push_back(uid);
-                        userInfo.push_back(pass);
-                        cout << "Logged in successfully" << endl;
-                    }
-                    else if (response_arguments[1] == "NOK") {
-                        cout << "Incorrect password" << endl;
-                    }
-                    else if (response_arguments[1] == "REG") {
-                        loggedIn = true;
-                        userInfo.push_back(uid);
-                        userInfo.push_back(pass);
-                        cout << "New User registered" << endl;
-                    }
-                    else {
-                        throw -1;
-                    }
-                } else {
-                    throw 0;
+                if (response.size() < 7 || response.size() > 8 || response.back() != '\n') {
+                    throw string("Invalid response from server");
                 }
-            } catch(int n) {
-                if (n == 0) {
-                    cout << "Syntax error" << endl;
-                } else {
-                    cout << "Invalid response from server" << endl;
+                    
+                parseInput(response, response_arguments);
+                if (response_arguments[0] != "RLI") {
+                    throw string("Invalid response from server");
+                }   
+
+                if (response_arguments[1] == "OK") {
+                    loggedIn = true;
+                    userInfo.push_back(uid);
+                    userInfo.push_back(pass);
+                    cout << "Logged in successfully" << endl;
                 }
+                else if (response_arguments[1] == "NOK") {
+                    cout << "Incorrect password" << endl;
+                }
+                else if (response_arguments[1] == "REG") {
+                    loggedIn = true;
+                    userInfo.push_back(uid);
+                    userInfo.push_back(pass);
+                    cout << "New User registered" << endl;
+                }
+                else if (response_arguments[1] == "ERR"){
+                    cout << "Error on server side" << endl;
+                } else {
+                    throw string("Invalid response from server");
+                }
+                break;
             }
-            break;
-        }
-        case LOGOUT: {
-            try
-            {
-                if (!loggedIn) throw 1;
+            case LOGOUT: {
+                if (!loggedIn) throw string("User not logged in");
 
                 string uid = userInfo[0];
                 string pass = userInfo[1];
+                checkUID(uid);
+                checkPasswordSyntax(pass);
 
-                if (checkUID(uid) && checkPasswordSyntax(pass)) {
-                    message = "LOU " + uid + " " + pass + "\n";
-                    sendReceiveUDPRequest(message, message.length(), response);
-                    
-                    if (response.size() < 7 || response.size() > 8 || response.back() != '\n') throw -1;
-                    parseInput(response, response_arguments);
-                    if (response_arguments[0] != "RLO") throw -1;
-
-                    if (response_arguments[1] == "OK") {
-                        userInfo.clear();
-                        loggedIn = false;
-                        cout << "Logged out successfully" << endl;
-                    } else if (response_arguments[1] == "NOK") {
-                        cout << "User not logged in" << endl;
-                    } else if (response_arguments[1] == "UNR") {
-                        cout << "User is not registered" << endl;
-                    } else {
-                        throw -1;
-                    }
-                } else {
-                    throw 0;
+                message = "LOU " + uid + " " + pass + "\n";
+                sendReceiveUDPRequest(message, message.length(), response);
+                
+                if (response.size() < 7 || response.size() > 8 || response.back() != '\n') {
+                    throw string("Invalid response from server");
                 }
-            }
-            catch(int n)
-            {
-                if (n == 1) {
+                parseInput(response, response_arguments);
+                if (response_arguments[0] != "RLO") {
+                    throw string("Invalid response from server");
+                }
+
+                if (response_arguments[1] == "OK") {
+                    userInfo.clear();
+                    loggedIn = false;
+                    cout << "Logged out successfully" << endl;
+                } else if (response_arguments[1] == "NOK") {
                     cout << "User not logged in" << endl;
-                } else if (n == 0) {
-                    cout << "Syntax error" << endl;
-                } else if (n == -1) {
-                    cout << "Invalid response from server" << endl;
+                } else if (response_arguments[1] == "UNR") {
+                    cout << "User is not registered" << endl;
+                } else if (response_arguments[1] == "ERR") {
+                    cout << "Error on server side" << endl;
+                } else {
+                    throw string("Invalid response from server");
                 }
+                break;
             }
-            break;
-        }
-        case UNREGISTER: {  
-            try
-            {
-                if (!loggedIn) throw 1;
+            case UNREGISTER: {  
+                if (!loggedIn) throw string("User not logged in");
 
                 string uid = userInfo[0];
                 string pass = userInfo[1];
+                checkUID(uid);
+                checkPasswordSyntax(pass);
 
-                if (checkUID(uid) && checkPasswordSyntax(pass)) {
-                    message = "UNR " + uid + " " + pass + "\n";
-                    sendReceiveUDPRequest(message, message.length(), response);
-                    
-                    if (response.size() < 7 || response.size() > 8 || response.back() != '\n') throw -1;
-                    parseInput(response, response_arguments);
-                    if (response_arguments[0] != "RUR") throw -1;
-
-                    if (response_arguments[1] == "OK") {
-                        userInfo.clear();
-                        loggedIn = false;
-                        cout << "User registered successfully" << endl;
-                    } else if (response_arguments[1] == "NOK") {
-                        cout << "User not logged in" << endl;
-                    } else if (response_arguments[1] == "UNR") {
-                        cout << "User not registered" << endl;
-                    } else {
-                        throw -1;
-                    }
-                } else {
-                    throw 0;
+                message = "UNR " + uid + " " + pass + "\n";
+                sendReceiveUDPRequest(message, message.length(), response);
+                
+                if (response.size() < 7 || response.size() > 8 || response.back() != '\n') {
+                    throw string("Invalid response from server");
                 }
-            }
-            catch(int n)
-            {
-                if (n == 1) {
+                parseInput(response, response_arguments);
+                if (response_arguments[0] != "RUR") {
+                    throw string("Invalid response from server");
+                }
+
+                if (response_arguments[1] == "OK") {
+                    userInfo.clear();
+                    loggedIn = false;
+                    cout << "User registered successfully" << endl;
+                } else if (response_arguments[1] == "NOK") {
                     cout << "User not logged in" << endl;
-                } else if (n == 0) {
-                    cout << "Syntax error" << endl;
-                } else if (n == -1) {
-                    cout << "Invalid response from server" << endl;
-                }
-            }
-            break;
-        }
-        case MYAUCTIONS: {
-            try {
-                string uid = arguments[1];
-                if (checkUID(uid)) {
-                    message = "LMA " + uid + "\n";
-                    sendReceiveUDPRequest(message, message.length(), response);
-
-                    if (response.size() < 7 || response.back() != '\n') throw -1;
-                    parseInput(response, response_arguments);
-                    if (response_arguments[0] != "RMA") throw -1;
-
-                    if (response_arguments[1] == "NOK") {
-                        cout << "User has no ongoing auctions" << endl;
-                    } else if (response_arguments[1] == "NLG") {
-                        cout << "User not logged in" << endl;
-                    } else if (response_arguments[1] == "OK") {
-                        cout << "Listing auctions from user " << response_arguments[1] << ":" << endl;
-                        for (int i = 2; i < response_arguments.size() - 1; i += 2) {
-                            cout << "Auction " << response_arguments[i] << " ";
-                            if (response_arguments[i+1] == "0") {
-                                cout << "Ended" << endl;
-                            } else if (response_arguments[i+1] == "1") {
-                                cout << "Ongoing" << endl;
-                            } else {
-                                throw -1;
-                            }
-                        }
-                    } else {
-                        throw -1;
-                    }
+                } else if (response_arguments[1] == "UNR") {
+                    cout << "User not registered" << endl;
+                } else if (response_arguments[1] == "ERR") {
+                    cout << "Error on server side" << endl;
                 } else {
-                    throw 0;
+                    throw string("Invalid response from server");
                 }
-            } catch (int n) {
-                if (n == 0) {
-                    cout << "Syntax error" << endl;
-                } else if (n == -1) {
-                    cout << "Invalid response from server" << endl;
-                }
+                break;
             }
-            break;
-        }
-        case MYBIDS: {
-            try {
+            case MYAUCTIONS: {
                 string uid = arguments[1];
-                if (checkUID(uid)) {
-                    message = "LMB " + uid + "\n";
-                    sendReceiveUDPRequest(message, message.length(), response);
-                    
-                    if (response.size() < 7 || response.back() != '\n') throw -1;
-                    parseInput(response, response_arguments);
-                    if (response_arguments[0] != "RMB") throw -1;
+                checkUID(uid);
 
-                    if (response_arguments[1] == "NOK") {
-                        cout << "User has no ongoing bids" << endl;
-                    } else if (response_arguments[1] == "NLG") {
-                        cout << "User not logged in" << endl;
-                    } else if (response_arguments[1] == "OK") {
-                        cout << "Listing auctions from user " << uid << " in which has bidded:" << endl;
-                        for (int i = 2; i < response_arguments.size() - 1; i += 2) {
-                            cout << "Auction " << response_arguments[i] << " ";
-                            if (response_arguments[i+1] == "0") {
-                                cout << "Ended" << endl;
-                            } else if (response_arguments[i+1] == "1") {
-                                cout << "Ongoing" << endl;
-                            } else {
-                                throw -1;
-                            }
+                message = "LMA " + uid + "\n";
+                sendReceiveUDPRequest(message, message.length(), response);
+
+                if (response.size() < 7 || response.back() != '\n') {
+                    throw string("Invalid response from server");
+                }
+                parseInput(response, response_arguments);
+                if (response_arguments[0] != "RMA") {
+                    throw string("Invalid response from server");
+                }
+
+                if (response_arguments[1] == "NOK") {
+                    cout << "User has no ongoing auctions" << endl;
+                } else if (response_arguments[1] == "NLG") {
+                    cout << "User not logged in" << endl;
+                } else if (response_arguments[1] == "OK") {
+                    cout << "Listing auctions from user " << response_arguments[1] << ":" << endl;
+                    for (int i = 2; i < response_arguments.size() - 1; i += 2) {
+                        cout << "Auction " << response_arguments[i] << " ";
+                        if (response_arguments[i+1] == "0") {
+                            cout << "Ended" << endl;
+                        } else if (response_arguments[i+1] == "1") {
+                            cout << "Ongoing" << endl;
+                        } else {
+                            throw string("Invalid response from serveer");
                         }
-                    } else {
-                        throw -1;
                     }
+                } else if (response_arguments[1] == "ERR") {
+                    cout << "Error on server side" << endl;
                 } else {
-                    throw 0;
+                    throw string("Invalid response from server");
                 }
-            } catch (int n) {
-                if (n == 0) {
-                    cout << "Syntax error" << endl;
-                } else if (n == -1) {
-                    cout << "Invalid response from server" << endl;
-                }
+                break;
             }
-            break;
-        }
-        case LIST: {
-            try {
+            case MYBIDS: {
+                string uid = arguments[1];
+                checkUID(uid);
+
+                message = "LMB " + uid + "\n";
+                sendReceiveUDPRequest(message, message.length(), response);
+                
+                if (response.size() < 7 || response.back() != '\n') {
+                    throw string("Invalid response from server");
+                }
+                parseInput(response, response_arguments);
+                if (response_arguments[0] != "RMB") {
+                    throw string("Invalid response from server");
+                }
+
+                if (response_arguments[1] == "NOK") {
+                    cout << "User has no ongoing bids" << endl;
+                } else if (response_arguments[1] == "NLG") {
+                    cout << "User not logged in" << endl;
+                } else if (response_arguments[1] == "OK") {
+                    cout << "Listing auctions from user " << uid << " in which has bidded:" << endl;
+                    for (int i = 2; i < response_arguments.size() - 1; i += 2) {
+                        cout << "Auction " << response_arguments[i] << " ";
+                        if (response_arguments[i+1] == "0") {
+                            cout << "Ended" << endl;
+                        } else if (response_arguments[i+1] == "1") {
+                            cout << "Ongoing" << endl;
+                        } else {
+                            throw string("Invalid response from server");
+                        }
+                    }
+                } else if (response_arguments[1] == "ERR") {
+                    cout << "Error on server side" << endl;
+                } else {
+                    throw string("Invalid response from server");
+                }
+                break;
+            }
+            case LIST: {
                 message = "LST\n";
                 sendReceiveUDPRequest(message, message.length(), response);
                 
-                if (response.size() < 7 || response.back() != '\n') throw -1;
+                if (response.size() < 7 || response.back() != '\n') {
+                    throw string("Invalid response from server");
+                }
                 parseInput(response, response_arguments);
-                if (response_arguments[0] != "RLS") throw -1;
+                if (response_arguments[0] != "RLS") {
+                    throw string("Invalid response from server");
+                }
 
                 if (response_arguments[1] == "NOK") {
                     cout << "No auctions have been started yet" << endl;
@@ -344,92 +321,125 @@ void handleUDPRequest(int request, vector<string> arguments) {
                         } else if (response_arguments[i+1] == "1") {
                             cout << "Ongoing" << endl;
                         } else {
-                            throw -1;
+                            throw string("Invalid response from server");
                         }
                     }
+                } else if (response_arguments[1] == "ERR") {
+                    cout << "Error on server side" << endl;
                 } else {
-                    throw -1;
+                    throw string("Invalid response from server");
                 }
-            } catch (int n) {
-                if (n == 0) {
-                    cout << "Syntax error" << endl;
-                } else if (n == -1) {
-                    cout << "Invalid response from server" << endl;
-                }
+                break;
             }
-            break;
-        }
-        case SHOW_RECORD: {
-            try {
-                // check each entry? auction names, fnames ..
+            case SHOW_RECORD: {
                 string aid = arguments[1];
-                if (checkAID(aid)) {
-                    message = "SRC " + aid + "\n";
-                    sendReceiveUDPRequest(message, message.length(), response);
+                checkAID(aid);
 
-                    if (response.size() < 7 || response.back() != '\n') throw -1;
-                    parseInput(response, response_arguments);
-                    if (response_arguments[0] != "RRC") throw -1;
+                message = "SRC " + aid + "\n";
+                sendReceiveUDPRequest(message, message.length(), response);
 
-                    if (response_arguments[1] == "NOK") {
-                        cout << "No auction has such AID" << endl;
-                    } else if (response_arguments[1] == "OK") {
-                        cout << "Auction " << aid << " was started by the user " << response_arguments[2] << "." << endl;
-                        cout << "Auction name: " << response_arguments[3] << endl;
-                        cout << "Item name: " << response_arguments[4] << endl;
-                        cout << "Image name: " << response_arguments[5] << endl;
-                        cout << "Starting price: " << response_arguments[6] << endl;
-                        cout << "Start date: " << response_arguments[7] << endl;
-                        cout << "Time since start: " << response_arguments[8] << endl;
+                if (response.size() < 7 || response.back() != '\n') {
+                    throw string("Invalid response from server");
+                }
+                parseInput(response, response_arguments);
+                if (response_arguments[0] != "RRC") {
+                    throw string("Invalid response from server");
+                }
 
-                        int index = 8;
-                        bool end = false;
-                        bool bids = false;
-                        while (!end) {
-                            if (response_arguments.size() > index) {
-                                index++;
-                                if (response_arguments[index] == "B") {
-                                    if (!bids) {
-                                        cout << "Listing bids:" << endl;
-                                    }
-                                    bids = true;
-                                    cout << "Bidder UID: " << response_arguments[++index] << endl;
-                                    cout << "Bid value: " << response_arguments[++index] << endl;
-                                    cout << "Bid date: " << response_arguments[++index] << endl;
-                                    cout << "Bid time: " << response_arguments[++index] << endl;
-                                    cout << "Bid time relative to auction start: " << response_arguments[++index] << endl;
+                if (response_arguments[1] == "NOK") {
+                    cout << "No auction has such AID" << endl;
+                } else if (response_arguments[1] == "OK") {
+                    string uid = response_arguments[2];
+                    string auction_name = response_arguments[3];
+                    string fname = response_arguments[4];
+                    string start_value = response_arguments[5];
+                    string date = response_arguments[6];
+                    string hour = response_arguments[7];
+                    string duration = response_arguments[8];
+                    checkUID(uid);
+                    checkName(auction_name);
+                    checkFileName(fname);
+                    checkStartValue(start_value);
+                    checkDuration(duration);
+
+                    cout << "Auction " << aid << " was started by the user " << uid << "." << endl;
+                    cout << "Auction name: " << auction_name << endl;
+                    cout << "File name: " << fname << endl;
+                    cout << "Starting price: " << start_value << endl;
+                    cout << "Start date: " << date << endl;
+                    cout << "Start hour: " << hour << endl;
+                    cout << "Duration: " << duration << endl;
+
+                    int index = 8;
+                    bool end = false;
+                    bool bids = false;
+                    string bid_uid;
+                    string bid_value;
+                    string bid_date;
+                    string bid_hour;
+                    string bid_duration;
+                    string end_date;
+                    string end_hour;
+                    string end_duration;
+                    while (!end) {
+                        if (response_arguments.size() > index) {
+                            index++;
+                            if (response_arguments[index] == "B") {
+                                if (!bids) {
+                                    cout << "Listing bids:" << endl;
                                 }
-                                else if (response_arguments[index] == "E") {
-                                    cout << "Auction ended in " << response_arguments[++index] << " at ";
-                                    cout << response_arguments[++index] << endl;
-                                    cout << "Auction duration: " << response_arguments[++index] << endl;
-                                } else {
-                                    throw -1;
-                                }
+                                bids = true;
+                                bid_uid = response_arguments[++index];
+                                bid_value = response_arguments[++index];
+                                bid_date = response_arguments[++index];
+                                bid_hour = response_arguments[++index];
+                                bid_duration = response_arguments[++index];
+                                checkUID(bid_uid);
+                                checkStartValue(bid_value);
+                                checkDate(bid_date);
+                                checkHour(bid_hour);
+                                checkDuration(bid_duration);
+
+                                cout << "Bidder UID: " << bid_uid << endl;
+                                cout << "Bid value: " << bid_value << endl;
+                                cout << "Bid date: " << bid_date << endl;
+                                cout << "Bid hour: " << bid_hour << endl;
+                                cout << "Bid duration: " << bid_duration << endl;
                             }
-                            else {
-                                end = true;
+                            else if (response_arguments[index] == "E") {
+                                end_date = response_arguments[++index];
+                                end_hour = response_arguments[++index];
+                                end_duration = response_arguments[++index];
+                                checkDate(end_date);
+                                checkHour(end_hour);
+                                checkDuration(end_duration);
+
+                                cout << "Auction ended in " << end_date << " at ";
+                                cout << end_hour << endl;
+                                cout << "Auction duration: " << end_duration << endl;
+                            } else {
+                                throw string("Invalid response from server");
                             }
                         }
-                    } else {
-                        throw -1;
+                        else {
+                            end = true;
+                        }
                     }
+                } else if (response_arguments[1] == "ERR") {
+                    cout << "Error on server side" << endl;
                 } else {
-                    throw 0;
+                    throw string("Invalid response from server");
                 }
-            } catch (int n){
-                if (n == 0) {
-                    cout << "Syntax error" << endl;
-                } else if (n == -1) {
-                    cout << "Invalid response from server" << endl;
-                }
+                break;
             }
-            
-            break;
+            default:
+                cout << "Syntax error" << endl;
+                break;
         }
-        default:
-            cout << "Syntax error" << endl;
-            break;
+    }
+    catch(string error)
+    {
+        cout << error << endl;
     }
 }
 
@@ -441,8 +451,9 @@ int sendTCPmessage(int const &fd, string &message, int size) {
         to_send = min(128, size-total_sent);
         n = write(fd, message.c_str() + total_sent, to_send);
         if (n == -1) {
-            cout << "TCP send error" << endl;
-            return n;
+            throw string("Error while reading from TCP socket");
+            // cout << "TCP send error" << endl;
+            // return n;
         }
         total_sent += n;    
     }
@@ -459,8 +470,9 @@ int receiveTCPsize(int const &fd, int const &size, string &response) {
     while (total_received < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
-            cout << "TCP receive error" << endl;
-            break;
+            throw string("Error while reading from TCP socket");
+            // cout << "TCP receive error" << endl;
+            // break;
         }
         concatenateString(response, tmp, n);
         total_received += n;
@@ -480,8 +492,9 @@ int receiveTCPspace(int fd, int size, string &response) {
     while (total_spaces < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
-            cout << "TCP receive error" << endl;
-            break;
+            throw string("Error while reading from TCP socket");
+            // cout << "TCP receive error" << endl;
+            // break;
         }
         concatenateString(response, tmp, n);
         total_received += n;
@@ -504,8 +517,9 @@ int receiveTCPend(int fd, string &response) {
     while (true) {
         n = read(fd, tmp, 1);
         if (n == -1) {
-            cout << "TCP receive error" << endl;
-            break;
+            throw string("Error while reading from TCP socket");
+            // cout << "TCP receive error" << endl;
+            // break;
         } else if (tmp[0] == '\n') {
             break;
         }
@@ -528,9 +542,11 @@ int receiveTCPfile(int fd, int size, string &fname) {
         to_read = min(128, size-total_received);
         n = read(fd, tmp, to_read);
         if (n == -1) {
-            cout << "TCP image receive error" << endl;
             fout.close();
-            return -1;
+            throw string("Error while reading from TCP socket");
+            // cout << "TCP image receive error" << endl;
+            // fout.close();
+            // return -1;
         }
         fout.write(tmp, n);
         total_received += n;
@@ -562,133 +578,173 @@ void handleTCPRequest(int request, vector<string> inputs) {
         return;
     }
     
-    switch (request) {
-        case OPEN:
-            // check syntax
-            // open name asset_fname start_value timeactive
-            if (!loggedIn) {
-                cout << "User not logged in" << endl;
-            }
-            message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " ";
-            message += inputs[3] + " " + inputs[4] + " " + inputs[2] + " ";
-            tmp = openJPG(inputs[2]);
-            // filesystem::file_size(inputs[2]);
-            message += to_string(tmp.size()) + " ";
-            message += openJPG(inputs[2]) + "\n";
-            n = sendTCPmessage(fd_tcp, message, message.size());
+    try{
+        switch (request) {
+            case OPEN: {
+                // check syntax
+                // open name asset_fname start_value timeactive
+                if (!loggedIn) throw string("User not logged in");
 
-            n = receiveTCPsize(fd_tcp, 7, message);
-            // n = sendReceiveTCPRequest(message, message.length());
-            parseInput(message, message_arguments);
-            receiveTCPend(fd_tcp, message);
-            if (message_arguments[1] == "NOK") {
-                cout << "Auction could not be started" << endl;
-            } else if (message_arguments[1] == "NLG") {
-                cout << "User not logged in" << endl;
-            } else if (message_arguments[1] == "OK") {
-                cout << "Auction created with AID " << message << endl;
-            }
-            break;
-        case CLOSE:
-            if (!loggedIn) {
-                cout << "User not logged in" << endl;
-            }
-            message = "CLS" + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + "\n";
-            n = sendTCPmessage(fd_tcp, message, message.size());
+                string auction_name = inputs[1];
+                string fname = inputs[2];
+                string start_value = inputs[3];
+                string duration = inputs[4];
+                checkName(auction_name);
+                checkFileName(fname);
+                checkStartValue(start_value);
+                checkDuration(duration);
 
-            n = receiveTCPsize(fd_tcp, 7, message);
+                message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + auction_name + " ";
+                message += start_value + " " + duration + " " + fname + " ";
+                tmp = openJPG(fname);
+                // filesystem::file_size(inputs[2]);
+                message += to_string(tmp.size()) + " ";
+                message += openJPG(fname) + "\n";
 
-            // n = sendReceiveTCPRequest(message, message.length());
-
-            parseInput(message, message_arguments);
-            if (message_arguments[1] == "OK") {
-                cout << "Auction created by the user has now been closed" << endl;
-                receiveTCPend(fd_tcp, message);
-            } else if (message_arguments[1] == "NLG") {
-                cout << "User not logged in" << endl;
-                receiveTCPend(fd_tcp, message);
-            } else if (message_arguments[1] == "EAU") {
-                cout << "No auction with such AID" << endl;
-                receiveTCPend(fd_tcp, message);
-            } else if (message_arguments[1] == "EOW") {
-                cout << "User not the owner of auction" << endl;
-                receiveTCPend(fd_tcp, message);
-            } else if (message_arguments[1] == "END") {
-                cout << "Auction has already been closed" << endl;
-                receiveTCPend(fd_tcp, message);
-            }
-            break;
-        case SHOW_ASSET:
-            message =  "SAS " + inputs[1] + "\n";
-            n = sendTCPmessage(fd_tcp, message, message.size());
-
-            n = receiveTCPsize(fd_tcp, 7, message);
-            parseInput(message, message_arguments);
-            //n = sendReceiveTCPRequest(message, message.length());
-
-            //tmp = getSubString(all_response, 0, 7);
-            // tmp = all_response.substr(0, 7);
-            
-            if (message_arguments[1] == "NOK") {
-                receiveTCPend(fd_tcp, message);
-                cout << "Error showing asset" << endl;
-            } else if (message_arguments[1] == "OK") {
-                n = receiveTCPspace(fd_tcp, 2, message);
+                sendTCPmessage(fd_tcp, message, message.size());
+                 
+                n = receiveTCPsize(fd_tcp, 7, message);
+                if (message.size() < 7) {
+                    throw string("Invalid response from server");
+                }
                 parseInput(message, message_arguments);
+                if (message_arguments[0] != "ROA") {
+                    throw string("Invalid response from server");
+                }  
 
-                string fname = message_arguments[0];
-                string fsize_str = message_arguments[1];
-                ssize_t fsize;
-                stringstream stream(fsize_str); // turn size into int
-                stream >> fsize;
-
-                n = receiveTCPfile(fd_tcp, fsize, fname);
-                n = receiveTCPend(fd_tcp, message);
-                // check if message == '\n'
-
-                // tmp.clear();
-                // int space_index = indexSpace(4, all_response);
-                // tmp = getSubString(all_response, 0, space_index); // get first 4 inputs
-                // //tmp = all_response.substr(0, space_index); // get first 4 inputs
-                // parseInput(tmp, response);
-                // printVectorString(response);
-                
-
-                // tmp.clear();
-                // tmp = getSubString(all_response, space_index+1, fsize); // get the image from response
-                // saveJPG(tmp, response[2]); // save the data into fname
-            }
-            break;
-        case BID:
-            // check syntax (bid > 0)
-            message = "BID " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " " + inputs[2] + "\n";
-            n = sendTCPmessage(fd_tcp, message, message.size());
-
-            n = receiveTCPend(fd_tcp, message);
-            if (n != 7) {
-                cout << "Syntax error while receiving response from server, BID" << endl;
+                receiveTCPend(fd_tcp, message);
+                if (message_arguments[1] == "NOK") {
+                    cout << "Auction could not be started" << endl;
+                } else if (message_arguments[1] == "NLG") {
+                    cout << "User not logged in" << endl;
+                } else if (message_arguments[1] == "OK") {
+                    cout << "Auction created with AID " << message << endl;
+                } else if (message_arguments[1] == "ERR") {
+                    cout << "Error on server side" << endl;
+                } else {
+                    throw string("Invalid response from server");
+                }
                 break;
             }
+            case CLOSE: {
+                if (!loggedIn) throw string("User not logged in");
 
-            parseInput(message, message_arguments);
-            if (message_arguments[1] == "NOK") {
-                cout << "Given auction is not active" << endl;
-            } else if (message_arguments[1] == "ACC") {
-                cout << "Bid has been accepted" << endl;
-            } else if (message_arguments[1] == "REF") {
-                cout << "Bid has been refused" << endl;
-            } else if (message_arguments[1] == "ILG") {
-                cout << "Cannot bid in an auction hosted by the user" << endl;
-            }  
-            break;
-        default:
-            cout << "Syntax Error" << endl;
-            n = -1;
-            break;
+                string aid = inputs[1];
+                checkAID(aid);
+
+                message = "CLS" + userInfo[0] + " " + userInfo[1] + " " + aid + "\n";
+
+                sendTCPmessage(fd_tcp, message, message.size());
+
+                n = receiveTCPsize(fd_tcp, 7, message);
+                if (message.size() < 7) {
+                    throw string("Invalid response from server");
+                }
+                parseInput(message, message_arguments);
+                if (message_arguments[0] != "RCL") {
+                    throw string("Invalid response from server");
+                } 
+
+                if (message_arguments[1] == "OK") {
+                    cout << "Auction created by the user has now been closed" << endl;
+                    receiveTCPend(fd_tcp, message);
+                } else if (message_arguments[1] == "NLG") {
+                    cout << "User not logged in" << endl;
+                    receiveTCPend(fd_tcp, message);
+                } else if (message_arguments[1] == "EAU") {
+                    cout << "No auction with such AID" << endl;
+                    receiveTCPend(fd_tcp, message);
+                } else if (message_arguments[1] == "EOW") {
+                    cout << "User not the owner of auction" << endl;
+                    receiveTCPend(fd_tcp, message);
+                } else if (message_arguments[1] == "END") {
+                    cout << "Auction has already been closed" << endl;
+                    receiveTCPend(fd_tcp, message);
+                } else if (message_arguments[1] == "ERR") {
+                    cout << "Error on server side";
+                } else {
+                    throw string("Invalid response from server");
+                }
+                break;
+            }
+            case SHOW_ASSET: {
+                string aid = inputs[1];
+                checkAID(aid);
+
+                message =  "SAS " + aid + "\n";
+                sendTCPmessage(fd_tcp, message, message.size());
+
+                n = receiveTCPsize(fd_tcp, 7, message);
+                if (message.size() < 7) {
+                    throw string("Invalid response from server");
+                }
+                parseInput(message, message_arguments);
+                if (message_arguments[0] != "RSA") {
+                    throw string("Invalid response from server");
+                } 
+               
+                if (message_arguments[1] == "NOK") {
+                    receiveTCPend(fd_tcp, message);
+                    cout << "Error showing asset" << endl;
+                } else if (message_arguments[1] == "OK") {
+                    n = receiveTCPspace(fd_tcp, 2, message);
+                    parseInput(message, message_arguments);
+
+                    string fname = message_arguments[0];
+                    string fsize_str = message_arguments[1];
+                    checkFileName(fname);
+                    checkFileSize(fsize_str);
+
+                    ssize_t fsize;
+                    stringstream stream(fsize_str); // turn size into int
+                    stream >> fsize;
+
+                    n = receiveTCPfile(fd_tcp, fsize, fname);
+                    n = receiveTCPend(fd_tcp, message);
+                    // check if message == '\n' (prolly not necessary if timeout on receivetcpend)
+                }
+                break;
+            }
+            case BID: {
+                string aid = inputs[1];
+                string value = inputs[2];
+                checkAID(aid);
+                checkStartValue(value);
+
+                message = "BID " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " " + inputs[2] + "\n";
+                sendTCPmessage(fd_tcp, message, message.size());
+
+                n = receiveTCPend(fd_tcp, message);
+                if (n != 7) {
+                    throw string("Invalid response from server");
+                }
+
+                parseInput(message, message_arguments);
+                if (message_arguments[1] == "NOK") {
+                    cout << "Given auction is not active" << endl;
+                } else if (message_arguments[1] == "ACC") {
+                    cout << "Bid has been accepted" << endl;
+                } else if (message_arguments[1] == "REF") {
+                    cout << "Bid has been refused" << endl;
+                } else if (message_arguments[1] == "ILG") {
+                    cout << "Cannot bid in an auction hosted by the user" << endl;
+                } else if (message_arguments[1] == "ERR") {
+                    cout << "Error on server side" << endl;
+                } else {
+                    throw string("Invalid response from server");
+                }
+                break;
+            }
+            default:
+                throw string("Invalid response from server");
+                break;
+        }
+    } catch (string error) {
+        cout << error << endl;
     }
     
     close(fd_tcp);
-    cout << "[LOG]: closed tcp connection" <<  endl;
+    cout << "[LOG]: closed tcp connection" << endl;
     return;
 }
 

@@ -12,6 +12,7 @@
 // check auction duration on close, show asset, bid (done)
 // bids always have 6 chars? (not necessary?)
 // XXX ERR on tcp (done)
+// add timeout to sockets and throws there
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child, errcode;
@@ -154,6 +155,7 @@ bool removeLogin(string &uid, string &pass) {
     loginName = "USERS/" + uid + "/" + uid + "_login.txt";
     removeFile(loginName);
     
+    cout << "[LOG]: UDP User " + uid + " logged out successfully" << endl;
     return true;
 }
 
@@ -290,12 +292,15 @@ string handleUDPRequest(char request[]) {
     parseInput(request, request_arguments);
     // verificar syntax do request (espacos, \n)
     request_type = parseCommand(request_arguments[0]);
-    switch(request_type) {
-        case LOGIN: {
-            string uid = request_arguments[1];
-            string pass = request_arguments[2];
-            try
-            {
+
+    try {
+        switch(request_type) {
+            case LOGIN: {
+                response = "RLI ";
+
+                string uid = request_arguments[1];
+                string pass = request_arguments[2];
+
                 checkUID(uid);
                 checkPasswordSyntax(pass);
 
@@ -306,31 +311,25 @@ string handleUDPRequest(char request[]) {
                     loginTxt = loginDir + "/" + uid + "_login.txt";
                     if (exists(loginTxt)) {
                         cout << "[LOG]: User already logged in" << endl;
-                        response = "RLI OK\n";
+                        response += "OK\n";
                     } else if (createLogin(uid, pass)) {
-                        response = "RLI OK\n";
+                        response += "OK\n";
                     } else {
-                        response = "RLI NOK\n";
+                        response += "NOK\n";
                     }
                 }
                 else {
                     Register(uid, pass);
                     createLogin(uid, pass);
-                    response = "RLI REG\n";
+                    response += "REG\n";
                 }
+                break;
             }
-            catch(string error)
-            {
-                cout << error << endl;
-                response = "RLI ERR\n";
-            }
-            break;
-        }
-        case LOGOUT: {
-            string uid = request_arguments[1];
-            string pass = request_arguments[2];
-            try
-            {
+            case LOGOUT: {
+                response = "RLO ";
+                string uid = request_arguments[1];
+                string pass = request_arguments[2];
+                
                 checkUID(uid);
                 checkPasswordSyntax(pass);
 
@@ -341,30 +340,23 @@ string handleUDPRequest(char request[]) {
                     loginTxt = loginDir + "/" + uid + "_login.txt";
                     if (!exists(loginTxt)) {
                         cout << "[LOG]: User not logged in" << endl;
-                        response = "RLO NOK\n";
+                        response += "NOK\n";
                     } else if (!removeLogin(uid, pass)) {
-                        response = "RLO NOK\n";
+                        response += "NOK\n";
                     } else {
-                        response = "RLO OK\n";
+                        response += "OK\n";
                     }
                 } else {
                     cout << "[LOG]: User not yet registered" << endl;;
-                    response = "RLO UNR\n";
+                    response += "UNR\n";
                 }
+                break;
             }
-            catch(string error)
-            {
-                cout << error << endl;
-                response = "RLO ERR\n";
-            }
-            break;
-        }
-        case UNREGISTER: {
-            string uid = request_arguments[1];
-            string pass = request_arguments[2];
+            case UNREGISTER: {
+                response = "RUR ";
+                string uid = request_arguments[1];
+                string pass = request_arguments[2];
 
-            try
-            {
                 checkUID(uid);
                 checkPasswordSyntax(pass);
 
@@ -375,39 +367,32 @@ string handleUDPRequest(char request[]) {
                     if (exists(loginTxt)) {
                         removeFile(loginTxt);
                         removeFile(passTxt);
-                        response = "RUR OK\n";
+                        response += "OK\n";
                     } else {
                         cout << "[LOG]: User not logged in" << endl;
-                        response = "RUR NOK\n";
+                        response += "NOK\n";
                     }
                 } else {
                     cout << "[LOG]: User not registered" << endl;
-                    response = "RUR UNR\n";
+                    response += "UNR\n";
                 }
+                break;
             }
-            catch(string error)
-            {
-                cout << error << endl;
-                response = "RUR ERR\n";
-            }      
-            break;
-        }
-        case MYAUCTIONS: {
-            string uid = request_arguments[1];
+            case MYAUCTIONS: {
+                response = "RMA ";
+                string uid = request_arguments[1];
 
-            try
-            {
                 checkUID(uid);
 
                 string hostedDir = "USERS/" + uid + "/HOSTED";
                 string loginTxt = "USERS/" + uid + "/" + uid + "_login.txt";
             
                 if (filesystem::is_empty(hostedDir)) {
-                    response = "RMA NOK\n";
+                    response += "NOK\n";
                 } else if (!exists(loginTxt)) {
-                    response = "RMA NLG\n";
+                    response += "NLG\n";
                 } else {
-                    response = "RMA OK ";
+                    response += "OK ";
 
                     string aid;
                     for (auto const &entry : filesystem::directory_iterator(hostedDir)) {
@@ -421,29 +406,22 @@ string handleUDPRequest(char request[]) {
                     }
                     response += "\n";
                 }
+                break;
             }
-            catch(string error)
-            {
-                cout << error << endl;
-                response = "RMA ERR\n";
-            }
-            break;
-        }
-        case MYBIDS: {
-            string uid = request_arguments[1];
+            case MYBIDS: {
+                response = "RMB ";
+                string uid = request_arguments[1];
 
-            try
-            {
                 checkUID(uid);
 
                 string biddedDir = "USERS/" + uid + "/BIDDED";
                 string loginTxt = "USERS/" + uid + "/" + uid + "_login.txt";
                 if (filesystem::is_empty(biddedDir)) {
-                    response = "RMB NOK\n";
+                    response += "NOK\n";
                 } else if (!exists(loginTxt)) {
-                    response = "RMB NLG\n";
+                    response += "NLG\n";
                 } else {
-                    response = "RMB OK ";
+                    response += "OK ";
 
                     string aid;
                     for (auto const &entry : filesystem::directory_iterator(biddedDir)) {
@@ -457,22 +435,15 @@ string handleUDPRequest(char request[]) {
                     }
                     response += "\n";
                 }
+                break;
             }
-            catch(string error)
-            {
-                cout << error << endl;
-                response = "RMB ERR\n";
-            }
-            break;
-        }
-        case LIST:{
-            try
-            {
+            case LIST:{
+                response = "RLS ";
                 string auctionsDir = "AUCTIONS";
                 if (filesystem::is_empty(auctionsDir)) {
-                    response = "RLS NOK\n";
+                    response += "NOK\n";
                 } else {
-                    response = "RLS OK ";
+                    response += "OK ";
 
                     string aid;
                     for (auto const &entry : filesystem::directory_iterator(auctionsDir)) {
@@ -486,26 +457,18 @@ string handleUDPRequest(char request[]) {
                     }
                     response += "\n";
                 }
+                break;
             }
-            catch(string error)
-            {
-                cout << error << endl;
-                response = "RLS ERR\n";
-            }
-            break;
-        }
-        case SHOW_RECORD: {
-            string aid = request_arguments[1];
-            
-            try
-            {
+            case SHOW_RECORD: {
+                response = "RRC ";
+                string aid = request_arguments[1];
                 checkAID(aid);
 
                 string auctionDir = "AUCTIONS/" + aid;
                 if (!exists(auctionDir)) {
-                    response = "RRC NOK\n";
+                    response += "NOK\n";
                 } else {
-                    response = "RRC OK ";
+                    response += "OK ";
 
                     string startTxt = auctionDir + "/START_" + aid + ".txt";
                     ifstream fin(startTxt);
@@ -608,19 +571,19 @@ string handleUDPRequest(char request[]) {
                         response += duration + "\n";
                     }
                 }
+                break;
             }
-            catch(string error)
-            {
-                cout << error << endl;
-                response = "RRC ERR\n";
-            }
-            break;
+            default:
+                cout << "[LOG]: Request Syntax error, couldn't identified it" << endl;
+                response = "ERR\n";
         }
-        default:
-            cout << "[LOG]: Request Syntax error, couldn't identified it" << endl;
-            response = "ERR\n";
     }
-    
+    catch(string error)
+    {
+        cout << error << endl;
+        response += "ERR\n";
+    }
+
     return response;
 }
 
@@ -654,7 +617,7 @@ void startUDP() {
         cout << "[LOG]: UDP sending response: " << response;
         n_udp = sendto(fd_udp, response.c_str(), response.length(), 0, (struct sockaddr*) &addr, addrlen);
         if (n_udp == -1) {
-            exit(1);
+            cout << "Error sending response to UDP socket" << endl;
         }
     }
 }
@@ -666,7 +629,7 @@ int receiveTCPsize(int fd, int size, string &response) {
     int n;
     char tmp[128];
     response.clear();
-    cout << "[LOG]: " << getpid() << " Receiving TCP request" << endl;
+    cout << "[LOG]: " << getpid() << " Receiving TCP request by size" << endl;
     while (total_received < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -732,7 +695,7 @@ int receiveTCPend(int fd, string &response) {
     return total_received;
 }
 
-int receiveTCPimage(int fd, int size, string &fname, string &aid) {
+int receiveTCPfile(int fd, int size, string &fname, string &aid) {
     int total_received = 0;
     int n, to_read;
     char tmp[128];
@@ -745,7 +708,7 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid) {
         throw string("Error creating asset file");
     }
 
-    cout << "[LOG]: " << getpid() << " Receiving TCP image" << endl;
+    cout << "[LOG]: " << getpid() << " Receiving TCP file" << endl;
     while (total_received < size) {
         to_read = min(128, size-total_received);
         n = read(fd, tmp, to_read);
@@ -753,9 +716,6 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid) {
             fout.close();
             removeDir(auctionDir);
             throw string("Error receiving TCP file");
-            // cout << "TCP image receive error" << endl;
-            // fout.close();
-            // return -1;
         }
         fout.write(tmp, n);
         total_received += n;
@@ -766,7 +726,6 @@ int receiveTCPimage(int fd, int size, string &fname, string &aid) {
     // filesystem::resize_file(dir, size);
 
     return total_received;
-    // receive image directly into file
 }
 
 int sendTCPresponse(int fd, string &message, int size) {
@@ -927,12 +886,10 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         cout << "[LOG]: Incorrect password" << endl;
                         response += "NOK\n";
                     } else {
-                        // talvez pode-se remover a pasta com tds os ficheiros dentro dela
-                        int status;
                         string aid = getNextAID(sharedAID);
 
                         createAuctionDir(aid);
-                        receiveTCPimage(fd, fsize, request_arguments[5], aid);
+                        receiveTCPfile(fd, fsize, request_arguments[5], aid);
                         receiveTCPsize(fd, 1, tmp);
                         if (tmp.at(0) != '\n') {
                             deleteAuctionDir(aid);
@@ -947,7 +904,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                             throw string("Couldn't create hosted file in User dir");
                         }
                         fout.close();
-                        
+                        cout << "[LOG]: " << getpid() << " Created auction with aid " << aid << endl;
                         response += "OK " + aid + "\n";
                     }
                     break;
@@ -1072,10 +1029,10 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         response += "NOK\n";
                     } else if (!checkAuctionDuration(aid) || exists(endTxt)) {
                         cout << "[LOG]: On bid, auction already closed" << endl;
-                        response = "NOK\n";
+                        response += "NOK\n";
                     } else if (!checkLogin(uid)) {
                         cout << "[LOG]: On bid, user not logged in" << endl;
-                        response = "NLG\n";
+                        response += "NLG\n";
                     } else {
                         string bidsDir = auctionDir + "/BIDS";
                         string highest_value = "0";
@@ -1218,7 +1175,7 @@ void startTCP(SharedAID *sharedAID) {
             if (shmdt(sharedAID) == -1) {
                 cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
             }
-            cout << "[LOG]: " << getpid() << " terminating after handling request" << endl; 
+            cout << "[LOG]: " << getpid() << " Terminating after handling request" << endl; 
             break;
         }
     }
