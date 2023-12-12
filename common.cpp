@@ -24,56 +24,119 @@ void parseInput(char *input, vector<string> &inputs) {
     }
 }
 
-bool checkUID(string &uid) {
+void checkUID(string &uid) {
     // primeiro digito tem que ser um (foi dito no slack)
     // 6 digitos
-    return all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6 && uid.at(0) == '1';
+    if ((all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6 && uid.at(0) == '1') == 0) {
+        throw string("UID Syntax error");
+    }
 }
 
-bool checkPasswordSyntax(string &pw) {
+void checkPasswordSyntax(string &pw) {
     // 8 numeros ou letras
-    return all_of(pw.begin(), pw.end(), ::isalnum) && pw.length() == 8;
+    if ((all_of(pw.begin(), pw.end(), ::isalnum) && pw.length() == 8) == 0) {
+        throw string("PASSWORD Syntax error");
+    }
 }
 
-bool checkAID(string &aid) {
-    return all_of(aid.begin(), aid.end(), ::isdigit) && aid.length() == 3;
+void checkAID(string &aid) {
+    if ((all_of(aid.begin(), aid.end(), ::isdigit) && aid.length() == 3) == 0) {
+        throw string("AID Syntax error");
+    }
 }
 
-bool checkName(string &name) {
-    return all_of(name.begin(), name.end(), ::isalnum) && name.length() <= 10;
+void checkName(string &name) {
+    if ((all_of(name.begin(), name.end(), ::isalnum) && name.length() <= 10) == 0) {
+        throw string("Auction name syntax error");
+    }
 }
 
-bool checkPrice(string &price) {
-    return all_of(price.begin(), price.end(), ::isdigit);
+void checkPrice(string &price) {
+    if (all_of(price.begin(), price.end(), ::isdigit) == 0) {
+        throw string("Auction Price syntax error");
+    }
 }
 
-bool checkTime(string &time) {
-    return all_of(time.begin(), time.end(), ::isdigit);
+void checkTime(string &time) {
+    if (all_of(time.begin(), time.end(), ::isdigit) == 0) {
+        throw string("Time Syntax error");
+    }
 }
 
-bool checkStartValue(string& svalue) {
-    return all_of(svalue.begin(), svalue.end(),::isdigit) && svalue.length() <= 6;
+void checkStartValue(string& svalue) {
+    if ((all_of(svalue.begin(), svalue.end(),::isdigit) && svalue.length() <= 6) == 0) {
+        throw string("Auction Start Value Syntax error");
+    }
 }
 
-bool checkDuration(string& duration) {
-    return all_of(duration.begin(), duration.end(),::isdigit) && duration.length() <= 5;
+void checkDuration(string& duration) {
+    if ((all_of(duration.begin(), duration.end(),::isdigit) && duration.length() <= 5) == 0) {
+        throw string("Auction Duration Syntax error");
+    }
 }
 
 bool isalnumplus(char c) {
     return isalnum(c) || c == '.' || c == '_' || c == '-';
 }
 
-bool checkFileName(string &fname) {
-    return all_of(fname.begin(), fname.end(),::isalnumplus) && fname.length() <= 24;
+void checkFileName(string &fname) {
+    if ((all_of(fname.begin(), fname.end(),::isalnumplus) && fname.length() <= 24) == 0) {
+        throw string("File name syntax error");
+    }
 }
 
-bool checkFileSize(string &fname) {
-    ssize_t fsize = filesystem::file_size(fname);
-    return 0 < fsize && fsize <= MAXFILESIZE;
+void checkFileSize(string &fsize_str) {
+    ssize_t fsize;
+    stringstream ss(fsize_str);;
+    ss >> fsize;
+    if ((0 < fsize && fsize <= MAXFILESIZE) == 0) {
+        throw string("File size error");
+    }
+}
+
+void checkDate(string &date) {
+    if (date.at(0) != '1' && date.at(0) != '2') {
+        throw string("Invalid date");
+    } else if (date.at(4) != '-' || date.at(7) != '-') {
+        throw string("Invalid date");
+    }
+
+    for (int i = 1; i < date.size(); i++) {
+        if (i != 4 && i != 7) {
+            if (!isdigit(date.at(i))) {
+                throw string("Invalid date");
+            }
+        }
+    }
+}
+
+void checkHour(string &hour) {
+    if (hour.at(2) != ':' || hour.at(5) != ':') {
+        throw string("Invalid hour");
+    } else {
+        string str_hours = getSubString(hour, 0, 2);
+        string str_minutes = getSubString(hour, 3, 2);
+        string str_seconds = getSubString(hour, 6, 2);
+
+        int hours = stoi(str_hours);
+        int minutes= stoi(str_minutes);
+        int seconds = stoi(str_seconds);
+
+        if (hours < 0 || hours > 23) {
+            throw string("Invalid hour");
+        } else if (minutes < 0 || minutes > 59) {
+            throw string("Invalid hour");
+        } else if (seconds < 0 || seconds > 59) {
+            throw string("Invalid hour");
+        }
+    }
 }
 
 string openJPG(string fname) {
     ifstream fin(fname, ios::binary);
+    if (!fin) {
+        throw string("Error opening file to read");
+    }
     ostringstream oss;
     oss << fin.rdbuf();
     return oss.str();

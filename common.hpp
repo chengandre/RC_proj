@@ -19,25 +19,29 @@ void parseInput(string &input, vector<string> &inputs);
 
 void parseInput(char *input, vector<string> &inputs);
 
-bool checkUID(string &uid);
+void checkUID(string &uid);
 
-bool checkPasswordSyntax(string &pw);
+void checkPasswordSyntax(string &pw);
 
-bool checkAID(string &aid);
+void checkAID(string &aid);
 
-bool checkName(string &name);
+void checkName(string &name);
 
-bool checkPrice(string &price);
+void checkPrice(string &price);
 
-bool checkTime(string &time);
+void checkTime(string &time);
 
-bool checkStartValue(string& svalue);
+void checkStartValue(string& svalue);
 
-bool checkDuration(string& duration);
+void checkDuration(string& duration);
 
-bool checkFileName(string &fname);
+void checkFileName(string &fname);
 
-bool checkFileSize(string &fname);
+void checkFileSize(string &fname);
+
+void checkDate(string &date);
+
+void checkHour(string &hour);
 
 string openJPG(string fname);
 
