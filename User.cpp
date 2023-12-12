@@ -360,6 +360,8 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     checkName(auction_name);
                     checkFileName(fname);
                     checkStartValue(start_value);
+                    checkDate(date);
+                    checkHour(hour);
                     checkDuration(duration);
 
                     cout << "Auction " << aid << " was started by the user " << uid << "." << endl;
@@ -382,7 +384,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     string end_hour;
                     string end_duration;
                     while (!end) {
-                        if (response_arguments.size() > index) {
+                        if (response_arguments.size() - 1 > index) {
                             index++;
                             if (response_arguments[index] == "B") {
                                 if (!bids) {
@@ -418,6 +420,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                                 cout << end_hour << endl;
                                 cout << "Auction duration: " << end_duration << endl;
                             } else {
+                                cout << "size " << response_arguments.size() << " index " << index;
                                 throw string("Invalid response from server");
                             }
                         }
@@ -810,28 +813,9 @@ int main(int argc, char *argv[]) {
                 inputs.push_back(userInfo[1]);
                 handleUDPRequest(LOGOUT, inputs);
             }
-            return EXIT_SUCCESS;
-            // exit request; check if logged in, logout if so
+            return EXIT_SUCCESS; 
         } else {
             cout << "No such request\n";
         }
-
-
-        // // have udp < target, request = parseCommand() with elseif
-        // switch(parseCommand(inputs[0])) {
-        //     case LOGIN:
-        //         handleUDPRequest(LOGIN, inputs);
-        //         break;
-        //     case LOGOUT:
-        //         handleUDPRequest(LOGOUT, inputs);
-        //         break;
-        //     case UNREGISTER:
-        //         handleUDPRequest(UNREGISTER, inputs);
-        //     default:
-        //         printf("No such command\n");
-        //         break;
-        // }
     }
-
-    return 0;
 }

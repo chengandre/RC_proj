@@ -95,7 +95,7 @@ void checkFileSize(string &fsize_str) {
 }
 
 void checkDate(string &date) {
-    if (date.at(0) != '1' || date.at(0) != '2') {
+    if (date.at(0) != '1' && date.at(0) != '2') {
         throw string("Invalid date");
     } else if (date.at(4) != '-' || date.at(7) != '-') {
         throw string("Invalid date");

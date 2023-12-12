@@ -590,30 +590,41 @@ string handleUDPRequest(char request[]) {
 void startUDP() {
     fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd_udp == -1) {
-        exit(1);
+        cout << "[LOG]: UDP Error creating socket, going to retry" << endl;
+        while (fd_udp == -1) {
+            sleep(1);
+            cout << "[LOG]: UDP Retrying to create socket" << endl;
+            fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
+        }
     }
+    cout << "[LOG]: UDP socket created" << endl;
 
     n_udp = ::bind(fd_udp, res->ai_addr, res->ai_addrlen);
     if (n_udp == -1) {
-        cout << "bind" << strerror(errno);
-        exit(1);
+        cout << "[LOG]: UDP Bind error: " << strerror(errno);
+        while (n_udp == -1) {
+            sleep(1);
+            cout << "[LOG]: UDP Retrying bind" << endl;
+            n_udp = ::bind(fd_udp, res->ai_addr, res->ai_addrlen);
+        }
     }
+    cout << "[LOG]: UDP Bind successfully";
 
     cout << "[LOG]: UDP starting to read from socket" << endl;
     string response;
     while (true) {
         addrlen = sizeof(addr);
+        response.clear();
+        
+        cout << "[LOG]: UDP waiting for requests" << endl;
         n_udp = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n_udp == -1) {
-            exit(1);
+            cout << "Error reading request from UDP socket" << endl;
+            response = "ERR\n";
+        } else {
+            response = handleUDPRequest(buffer);
         }
 
-        // string message = "Server received: ";
-        // message += buffer;
-        // cout << message;
-
-        response.clear();
-        response = handleUDPRequest(buffer);
         cout << "[LOG]: UDP sending response: " << response;
         n_udp = sendto(fd_udp, response.c_str(), response.length(), 0, (struct sockaddr*) &addr, addrlen);
         if (n_udp == -1) {
@@ -621,7 +632,6 @@ void startUDP() {
         }
     }
 }
-
 
 // throw on send and receive
 int receiveTCPsize(int fd, int size, string &response) {
@@ -1136,27 +1146,43 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
 }
 
 void startTCP(SharedAID *sharedAID) {
+
     fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
     if (fd_tcp == -1) {
-        cout << "TCP socket error" << endl;
-        exit(EXIT_FAILURE);
+        cout << "[LOG]: TCP Error creating socket, going to retry" << endl;
+        while (fd_tcp == -1) {
+            sleep(1);
+            cout << "[LOG]: TCP Retrying to create socket" << endl;
+            fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
+        }
     }
+    cout << "[LOG]: TCP socket created" << endl;
 
     int on = 1;
     setsockopt(fd_tcp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
     n_tcp = ::bind(fd_tcp, res->ai_addr, res->ai_addrlen);
     if (n_tcp == -1) {
-        cout << "TCP bind error" << endl;
-        exit(EXIT_FAILURE);
+        cout << "[LOG]: TCP Bind error" << endl;
+        while (n_tcp == -1) {
+            sleep(1);
+            cout << "[LOG]: TCP Retrying Bind" << endl;
+            n_tcp = ::bind(fd_tcp, res->ai_addr, res->ai_addrlen);
+        }
+    }
+    cout << "[LOG]: TCP Bind successfully" << endl;
+
+    if (listen(fd_tcp, SOMAXCONN) == -1) {
+        cout << "[LOG]: TCP listen error" << endl;
+        sleep(1);
+        cout << "[LOG]: TCP Retrying to listen" << endl;
+        while (listen(fd_tcp, SOMAXCONN) == -1) {
+            sleep(1);
+            cout << "[LOG]: TCP Retrying to listen" << endl;
+        }
     }
 
-    if (listen(fd_tcp, 50) == -1) {
-        cout << "TCP listen error" << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    while (1) {
+    while (true) {
         addrlen = sizeof(addr);
         cout << "[LOG]: Parent " << getpid() << " starting to accept requests" << endl;
         if ( (tcp_child = accept(fd_tcp, (struct sockaddr*) &addr, &addrlen)) == -1) {
