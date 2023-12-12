@@ -1,18 +1,10 @@
 #include "AS.hpp"
 #include "common.hpp"
-// -2 for no_error throw (not used anymore)
-// handle signal child (done)
-// verify if ifstream ofstream have opened correctly (done)
-// use remove_all to delete everything in a folder (prolly done)
-// add syntax if anything goes wrong change it to false (change to try catch)
-// syntax error or error creating/removing files (change to try catch)
+
+// remove sigint handler
 // maybe change parseInput to splitString cause it is used in other cases
-// If error or syntax send Err or Syn (wrong)
-// implement try catch? (done on as)
-// check auction duration on close, show asset, bid (done)
 // bids always have 6 chars? (not necessary?)
-// XXX ERR on tcp (done)
-// add timeout to sockets and throws there
+
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child, errcode;
@@ -29,6 +21,7 @@ time_t fulltime;
 struct tm *current_time;
 string current_time_str;
 SharedAID *sharedAID;
+char host[NI_MAXHOST],service[NI_MAXSERV];
 
 
 bool exists(string& name) {
@@ -38,20 +31,18 @@ bool exists(string& name) {
 }
 
 void removeFile(string &path) {
+    // removes a single file
+    // throws error to stop request handling
     error_code ec;
     int ret = filesystem::remove(path, ec);
 
     if (!ec) { 
         if (!ret) {
-            //cout << "[LOG]: File didn't exist" << endl;
-            //no_error = false;
             throw string("[IO ERROR]: File didn't exist\n");  
         }
     } 
     else {  
         string tmp = "[IO ERROR]: File " + path + " removed unsuccessful: " + to_string(ec.value()) + " " + ec.message() + "\n";
-        //cout << "[LOG]: File " << path << " removed unsuccessful: " << ec.value() << " " << ec.message() << endl;
-        //no_error = false;
         throw tmp;
     }
 }
@@ -62,15 +53,11 @@ void removeDir(string &path) {
     int ret = filesystem::remove_all(path, ec);
     if (!ec) { 
         if (!ret) {
-            //cout<< "[LOG]: File didn't exist" << endl;
-            //no_error = false;
             throw string("[IO ERROR]: File didn't exist");  
         }
     } 
     else {  
         string tmp = "[IO ERROR]: File " + path + " removed unsuccessful: " + to_string(ec.value()) + " " + ec.message() + "\n";
-        //cout << "[LOG]: File " << path << " removed unsuccessful: " << ec.value() << " " << ec.message() << endl;
-        //no_error = false;
         throw tmp;
     }
 }
@@ -108,10 +95,7 @@ bool checkPassword(string &uid, string &pw) {
 
     ifstream pw_file(fname);
     if (!pw_file) {
-        // cout << "[LOG]: Couldn't open user password file" << endl;
-        // no_error = false;
         throw string("[LOG]: Couldn't open user password file");
-        // return true;
     }
     
     ostringstream oss;
@@ -121,7 +105,7 @@ bool checkPassword(string &uid, string &pw) {
 }
 
 bool createLogin(string &uid, string &pass) {
-    // false if incorrect password
+    // true if pass is correct, else false
     string loginName;
 
     if (!checkPassword(uid, pass)) {
@@ -132,19 +116,16 @@ bool createLogin(string &uid, string &pass) {
     loginName = "USERS/" + uid + "/" + uid + "_login.txt";
     ofstream fout(loginName, ios::out);
     if (!fout) {
-        // cout << "[LOG]: Couldn't create login file" << endl;
-        // no_error = false;
         throw string("[LOG]: Couldn't create login file");
-        // return true;
     }
+
     cout << "[LOG]: User " + uid << " logged in" << endl;
     fout.close();
     return true;
 }
 
 bool removeLogin(string &uid, string &pass) {
-    // 0 if pass is ok, -1 otherwise
-    // other errors are carried by syntax and no_error;
+    // true if logged out, false is pass is wrong
     string loginName;
 
     if (!checkPassword(uid, pass)) {
@@ -205,16 +186,16 @@ void Register(string &uid, string &pass) {
 }
 
 bool auctionEnded(string const &aid) {
+    // checks if auction has already closed
     string endedTxt = "AUCTIONS/" + aid + "/END_" + aid + ".txt";
     return exists(endedTxt);
 }
 
 void endAuction(string const &aid, int const &itime) {
+    // ends an auction, creating end_aid.txt
     string endTxt = "AUCTIONS/" + aid + "/END_" + aid + ".txt";
     ofstream fout(endTxt);
     if (!fout) {
-        // cout << "[LOG]: Couldn't create END AUCTION text file" << endl;
-        // no_error = false;
         throw string("[LOG]: Couldn't create END AUCTION text file");
     }
 
@@ -233,6 +214,7 @@ void endAuction(string const &aid, int const &itime) {
 }
 
 string getTime() {
+    // Get time in seconds since 1970
     time(&fulltime);
     stringstream ss;
     ss << fulltime;
@@ -241,6 +223,7 @@ string getTime() {
 }
 
 string getDateAndTime() {
+    // Get date,hour and time in seconds
     char time_str[30];
 
     time(&fulltime);
@@ -256,7 +239,8 @@ string getDateAndTime() {
 }
 
 bool checkAuctionDuration(string const &aid) {
-    // true if auction duration is ok, false if should be closed
+    // true if auction duration is ok
+    // false if should be closed and goes calls endAuction
     string startTxt = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
     ifstream fin(startTxt);
     string content;
@@ -282,12 +266,11 @@ bool checkAuctionDuration(string const &aid) {
 }
 
 string handleUDPRequest(char request[]) {
-    // return string with response
+
+    // handle UDP request from user, return the response to send
     string response;
     vector<string> request_arguments;
     int request_type;
-    // bool syntax = true;
-    // bool no_error = true;
 
     parseInput(request, request_arguments);
     // verificar syntax do request (espacos, \n)
@@ -449,7 +432,6 @@ string handleUDPRequest(char request[]) {
                     for (auto const &entry : filesystem::directory_iterator(auctionsDir)) {
                         aid = getSubString(entry.path().string(), 9, 3);
                         if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
-                            // terminou ou ja esta fora de prazo
                             response += aid + " 0 ";
                         } else {
                             response += aid + " 1 ";
@@ -473,8 +455,6 @@ string handleUDPRequest(char request[]) {
                     string startTxt = auctionDir + "/START_" + aid + ".txt";
                     ifstream fin(startTxt);
                     if (!fin) {
-                        //cout << "[LOG]: Couldn't open start auction text" << endl;
-                        //no_error = false;
                         throw string("[LOG]: Couldn't open start auction text");
                     }
 
@@ -519,9 +499,6 @@ string handleUDPRequest(char request[]) {
                         for (int i = sortedBidsPath.size()-1; i >= 0; i--) {
                             ifstream fin(sortedBidsPath.at(i));
                             if (!fin) {
-                                // cout << "[LOG]: Couldn't open bid file on show_record" << endl;
-                                // no_error = false;
-                                // break;
                                 throw string("[LOG]: Couldn't open bid file on show_record");
                             }
                             getline(fin, content);
@@ -552,9 +529,6 @@ string handleUDPRequest(char request[]) {
                     if (exists(endTxt)) {
                         ifstream fin(endTxt);
                         if (!fin) {
-                            // cout << "[LOG]: Couldn't open bid file on show_record" << endl;
-                            // no_error = false;
-                            // break;
                             throw string("[LOG]: Couldn't open bid file on show_record");
                         }
                         getline(fin, content);
@@ -588,27 +562,39 @@ string handleUDPRequest(char request[]) {
 }
 
 void startUDP() {
+
     fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd_udp == -1) {
-        cout << "[LOG]: UDP Error creating socket, going to retry" << endl;
-        while (fd_udp == -1) {
-            sleep(1);
-            cout << "[LOG]: UDP Retrying to create socket" << endl;
-            fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
-        }
+        cout << "[LOG]: UDP Error creating socket" << endl;
+        exit(EXIT_FAILURE);
     }
     cout << "[LOG]: UDP socket created" << endl;
+
+    int on = 1;
+    if (setsockopt(fd_udp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
+        cout << "[LOG]: TCP Error setting socket options" << endl; 
+        exit(EXIT_FAILURE);
+    }
 
     n_udp = ::bind(fd_udp, res->ai_addr, res->ai_addrlen);
     if (n_udp == -1) {
         cout << "[LOG]: UDP Bind error: " << strerror(errno);
-        while (n_udp == -1) {
-            sleep(1);
-            cout << "[LOG]: UDP Retrying bind" << endl;
-            n_udp = ::bind(fd_udp, res->ai_addr, res->ai_addrlen);
-        }
+        exit(EXIT_FAILURE);
     }
-    cout << "[LOG]: UDP Bind successfully";
+    cout << "[LOG]: UDP Bind successfully" << endl;
+
+    struct timeval timeout;
+    timeout.tv_sec = 5; 
+    timeout.tv_usec = 0;
+    
+    if (setsockopt(fd_udp, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
+        cout << "[LOG]: UDP Error setting timeout" << endl;
+        int ret;
+        do {
+            ret = close(fd_udp);
+        } while (ret == -1 && errno == EINTR);
+        exit(EXIT_FAILURE);
+    }
 
     cout << "[LOG]: UDP starting to read from socket" << endl;
     string response;
@@ -622,6 +608,11 @@ void startUDP() {
             cout << "Error reading request from UDP socket" << endl;
             response = "ERR\n";
         } else {
+            if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), 0)) != 0) {
+                cout << "[LOG]: UDP Error getnameinfo: " << gai_strerror(errcode) << endl;
+            } else {
+                cout << "[LOG]: UDP got a request from " << host << ":" << service << endl;
+            }
             response = handleUDPRequest(buffer);
         }
 
@@ -633,7 +624,6 @@ void startUDP() {
     }
 }
 
-// throw on send and receive
 int receiveTCPsize(int fd, int size, string &response) {
     int total_received = 0;
     int n;
@@ -644,8 +634,6 @@ int receiveTCPsize(int fd, int size, string &response) {
         n = read(fd, tmp, 1);
         if (n == -1) {
             throw string("Error reading from TCP socket");
-            // cout << "TCP receive error" << endl;
-            // break;
         }
         concatenateString(response, tmp, n);
         total_received += n;
@@ -656,9 +644,9 @@ int receiveTCPsize(int fd, int size, string &response) {
 }
 
 int receiveTCPspace(int fd, int size, string &response) {
+    int n;
     int total_received = 0;
     int total_spaces = 0;
-    int n;
     char tmp[128];
     response.clear();
     cout << "[LOG]: " << getpid() << " Receiving TCP request by spaces" << endl;
@@ -666,8 +654,6 @@ int receiveTCPspace(int fd, int size, string &response) {
         n = read(fd, tmp, 1);
         if (n == -1) {
             throw string("Error reading from TCP socket");
-            // cout << "TCP receive error" << endl;
-            // break;
         }
         concatenateString(response, tmp, n);
         total_received += n;
@@ -691,8 +677,6 @@ int receiveTCPend(int fd, string &response) {
         n = read(fd, tmp, 1);
         if (n == -1) {
             throw string("Error reading from TCP socket");
-            // cout << "TCP receive error" << endl;
-            // break;
         } else if (tmp[0] == '\n') {
             break;
         }
@@ -730,16 +714,15 @@ int receiveTCPfile(int fd, int size, string &fname, string &aid) {
         fout.write(tmp, n);
         total_received += n;
     }
+
     cout << "[LOG]: " << getpid() << " Received file of size " << total_received << " fsize is " << size << endl;
     fout.close();
-    
-    // filesystem::resize_file(dir, size);
 
     return total_received;
 }
 
 int sendTCPresponse(int fd, string &message, int size) {
-    cout << "[LOG]: " << getpid() << " Sending TCP responde" << endl;
+    cout << "[LOG]: " << getpid() << " Sending TCP response" << endl;
     int total_sent = 0;
     int n;
     while (total_sent < size) {
@@ -750,19 +733,20 @@ int sendTCPresponse(int fd, string &message, int size) {
         }
         total_sent += n;
     }
+
     cout << "[LOG]: " << getpid() << " Sent TCP response" << endl;
     return total_sent;
 }
 
 bool checkLogin (string &uid) {
-    // checks if user is logged in
+    // true if user is logged in, else false
     struct stat buffer;
     string tmp = "USERS/" + uid + "/" + uid + "_login.txt";
     return (stat (tmp.c_str(), &buffer) == 0); 
 }
 
 void createAuctionDir(string &aid) {
-    // if error throws
+    // creates all the directories necessary for an auction
     string AID_dirname = "AUCTIONS/" + aid;
     string BIDS_dirname = "AUCTIONS/" + aid + "/BIDS";
     string ASSET_dirname = "AUCTIONS/" + aid + "/ASSET";
@@ -770,8 +754,6 @@ void createAuctionDir(string &aid) {
 
     ret = mkdir(AID_dirname.c_str(), 0700);
     if (ret == -1) {
-        //cout << "Error mkdir" << endl;
-        //no_error = false;
         throw string("Error creating directory AID");
     }
 
@@ -779,16 +761,12 @@ void createAuctionDir(string &aid) {
     if (ret == -1) {
         removeDir(AID_dirname);
         throw string("Error creating directory AID/BIDS");
-        //no_error = false;
-        //return -1;
     }
 
     ret = mkdir(ASSET_dirname.c_str(), 0700);
     if (ret == -1) {
         removeDir(AID_dirname);
         throw string("Error creating directory AID/ASSET");
-        //no_error = false;
-        //return -1;
     }
 }
 
@@ -798,7 +776,7 @@ void deleteAuctionDir(string &aid) {
 }
 
 string getNextAID(SharedAID *sharedAID) {
-    // char tmp[10];
+    // returns the next available AID
     sem_wait(&sharedAID->sem);
 
     stringstream ss;
@@ -814,6 +792,7 @@ string getNextAID(SharedAID *sharedAID) {
 
 
 void createStartAuctionText(vector<string> &arguments, string &aid) {
+    // creates start_aid.txt
     string name, tmp;
 
     tmp = arguments[0] + " "; // UID
@@ -826,16 +805,16 @@ void createStartAuctionText(vector<string> &arguments, string &aid) {
     name = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
     ofstream fout(name, ios::out);
     if (!fout) {
-        //cout << "Error creating start auction text" << endl;
         deleteAuctionDir(aid);
         throw string("Error creating start auction text");
-        //return -1;
     }
+
     fout.write(tmp.c_str(), tmp.size());
     fout.close();
 }
 
 bool checkOwner(string &uid, string &aid) {
+    // checks if user is auctions' owner
     string auctionDir = "AUCTIONS/" + aid;
     string startTxt = auctionDir + "/START_" + aid + ".txt";
     char tmp[6];
@@ -843,9 +822,6 @@ bool checkOwner(string &uid, string &aid) {
     ifstream fin(startTxt);
     if (!fin) {
         throw string("[LOG]: Error opening file to read");
-        // cout << "[LOG]: Error opening file to read" << endl;
-        // no_error = false;
-        // return true;
     }
     fin.read(tmp, 6);
     fin.close();
@@ -855,14 +831,13 @@ bool checkOwner(string &uid, string &aid) {
 }
 
 void handleTCPRequest(int &fd, SharedAID *sharedAID) {
-    cout << "[LOG]: Got one request child " << getpid() << " handling it" << endl;
+    // handles TCP request from user (receives, handles and answers)
+
+    cout << "[LOG]: " << getpid() << " Got one request" << endl;
     string request, tmp, response;
-    // bool syntax = true;
-    // bool no_error = true;
     vector<string> request_arguments;
     int request_type;
-    try
-    {
+    try {
         receiveTCPsize(fd, 3, tmp);
         request_type = parseCommand(tmp);
         receiveTCPsize(fd, 1, tmp); // clear space
@@ -888,7 +863,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     checkFileName(request_arguments[5]);
                     checkFileSize(request_arguments[6]);
 
-                    // bool ok = true;
                     if (!checkLogin(request_arguments[0])) {
                         cout << "[LOG]: User not logged in" << endl;
                         response += "NLG\n";
@@ -957,9 +931,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         ofstream fout(endTxt);
                         if (!fout) {
                             throw string("Error creating end text file");
-                            // cout << "[LOG]: Error opening file to write" << endl;
-                            // no_error = false;
-                            // break;
                         }
                         fout << content;
                         fout.close();
@@ -1007,9 +978,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     int n = receiveTCPspace(fd, 3, request);
                     if (n != 20) {
                         throw string("Syntax error on bid reequest");
-                        // cout << "[LOG]: Bid request of size < 20" << endl;
-                        // syntax = false;
-                        // break;
                     }
                     parseInput(request, request_arguments);
 
@@ -1017,9 +985,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     receiveTCPend(fd, value);
                     if (value.size() > 6) {
                         throw string("Syntax error on bid request");
-                        // cout << "[LOG]: Bid value > 6" << value << endl;
-                        // syntax = false;
-                        // break;
                     }
 
                     string uid = request_arguments[0];
@@ -1061,9 +1026,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                             ifstream fin(highestBid);
                             if (!fin) {
                                 throw string("Couldn't open bid file to read");
-                                // cout << "[LOG]: Couldn't open bid file on bid" << endl;
-                                // no_error = false;
-                                // break;
                             }
                             getline(fin, content);
                             fin.close();
@@ -1082,11 +1044,9 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         ifstream fin(startTxt);
                         if (!fin) {
                             throw string("Couldn't open bid file to read");
-                            // cout << "[LOG]: Couldn't open bid file on bid" << endl;
-                            // no_error = false;
-                            // break;
                         }
                         fin.read(tmp, 6);
+                        fin.close();
                         string auctionOwner(tmp);
 
                         if (auctionOwner == uid) {
@@ -1099,9 +1059,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         ofstream fout(bidTxt);
                         if (!fout) {
                             throw string("Couldn't open file to write on bid");
-                            // cout << "[LOG]: Couldn't open file to write on bid" << endl;
-                            // no_error = false;
-                            // break;
                         }
 
                         string content = uid + " ";
@@ -1115,9 +1072,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         if (!fout) {
                             removeFile(bidTxt);
                             throw string("Couldn't create bid file to user");
-                            // cout << "[LOG]: Couldn't create bid file to user" << endl;
-                            // no_error = false;
-                            // break;
                         }
                         fout.close();
                         
@@ -1127,9 +1081,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                 }
                 default:
                     throw string("Couldn't identify TCP request");
-                    // cout << "Syntax error" << endl;
-                    // syntax = false;
-                    // break;
             }
         }
     }
@@ -1149,44 +1100,59 @@ void startTCP(SharedAID *sharedAID) {
 
     fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
     if (fd_tcp == -1) {
-        cout << "[LOG]: TCP Error creating socket, going to retry" << endl;
-        while (fd_tcp == -1) {
-            sleep(1);
-            cout << "[LOG]: TCP Retrying to create socket" << endl;
-            fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
-        }
+        cout << "[LOG]: TCP Error creating socket" << endl;
+        exit(EXIT_FAILURE);
     }
     cout << "[LOG]: TCP socket created" << endl;
 
     int on = 1;
-    setsockopt(fd_tcp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    if (setsockopt(fd_tcp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
+        cout << "[LOG]: TCP Error setting socket options" << endl; 
+        exit(EXIT_FAILURE);
+    }
 
     n_tcp = ::bind(fd_tcp, res->ai_addr, res->ai_addrlen);
     if (n_tcp == -1) {
         cout << "[LOG]: TCP Bind error" << endl;
-        while (n_tcp == -1) {
-            sleep(1);
-            cout << "[LOG]: TCP Retrying Bind" << endl;
-            n_tcp = ::bind(fd_tcp, res->ai_addr, res->ai_addrlen);
-        }
+        exit(EXIT_FAILURE);
     }
     cout << "[LOG]: TCP Bind successfully" << endl;
 
     if (listen(fd_tcp, SOMAXCONN) == -1) {
         cout << "[LOG]: TCP listen error" << endl;
-        sleep(1);
-        cout << "[LOG]: TCP Retrying to listen" << endl;
-        while (listen(fd_tcp, SOMAXCONN) == -1) {
-            sleep(1);
-            cout << "[LOG]: TCP Retrying to listen" << endl;
-        }
+        exit(EXIT_FAILURE);
     }
 
+    int ret;
     while (true) {
         addrlen = sizeof(addr);
         cout << "[LOG]: Parent " << getpid() << " starting to accept requests" << endl;
-        if ( (tcp_child = accept(fd_tcp, (struct sockaddr*) &addr, &addrlen)) == -1) {
-            cout << "TCP accept error" << endl;
+
+        do {
+            tcp_child = accept(fd_tcp, (struct sockaddr*) &addr, &addrlen);
+        } while(tcp_child == -1 && errno == EINTR);
+
+        if(tcp_child == -1) {
+            cout << "[LOG]: TCP accept error" << endl;
+            exit(EXIT_FAILURE);
+        }
+        
+        struct timeval timeout;
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
+        if (setsockopt(tcp_child, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
+            cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
+            do {
+                ret = close(tcp_child);
+            } while (ret == -1 && errno == EINTR);
+            exit(EXIT_FAILURE);
+        }
+
+        if (setsockopt(tcp_child, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
+            cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
+            do {
+                ret = close(tcp_child)  ;
+            } while (ret == -1 && errno == EINTR);
             exit(EXIT_FAILURE);
         }
 
@@ -1195,14 +1161,34 @@ void startTCP(SharedAID *sharedAID) {
             cout << "TCP fork error" << endl;
             exit(EXIT_FAILURE);
         } else if (pid == 0) {
+            close(fd_tcp);
             int on = 1;
             setsockopt(tcp_child, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+
+            if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), 0)) != 0) {
+                cout << "[LOG]: TCP Error getnameinfo: " << gai_strerror(errcode) << endl;
+            } else {
+                cout << "[LOG]: " << getpid() << " will be handling request from " << host << ":" << service << endl;
+            }
+            
             handleTCPRequest(tcp_child, sharedAID);
             if (shmdt(sharedAID) == -1) {
                 cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
             }
             cout << "[LOG]: " << getpid() << " Terminating after handling request" << endl; 
-            break;
+            
+            do {
+                ret = close(tcp_child);
+            } while (ret == -1 && errno == EINTR);
+            exit(EXIT_SUCCESS);
+        }
+    
+        do {
+            ret = close(tcp_child);
+        } while (ret == -1 && errno == EINTR);
+
+        if (ret == -1) {
+            exit(EXIT_FAILURE);
         }
     }
 }
@@ -1225,14 +1211,24 @@ void sigintHandler(int signum) {
             filesystem::remove_all(entry.path());
         }
     } 
+
+    close(fd_tcp);
+    close(fd_udp);
         
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char *argv[]) {
 
     signal(SIGINT, sigintHandler);
     signal(SIGCHLD, SIG_IGN);
+
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = SIG_IGN;
+    if (sigaction(SIGPIPE, &act, NULL) == -1) {
+        exit(EXIT_FAILURE);   
+    }
 
     switch(argc) {
         case 1:
@@ -1265,7 +1261,7 @@ int main(int argc, char *argv[]) {
     errcode = getaddrinfo(NULL, port.c_str(), &hints, &res);
     if (errcode != 0) {
         cout << gai_strerror(errcode);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     key_t key = ftok("SharedData", 0);
