@@ -69,7 +69,7 @@ void sendReceiveUDPRequest(string &message, int size, string &response) {
     //int total_received = 0;
     int total_sent = 0;
     int n;
-    cout << "[LOG]: Sending UDP request" << endl;
+    //cout << "[LOG]: Sending UDP request" << endl;
     while (total_sent < size) {
         n = sendto(fd_udp, message.c_str() + total_sent, size - total_sent, 0, res->ai_addr, res->ai_addrlen);
         if (n == -1) {
@@ -77,12 +77,12 @@ void sendReceiveUDPRequest(string &message, int size, string &response) {
         }
         total_sent += n;
     }
-    cout << "[LOG]: Sent UDP request" << endl;
+    //cout << "[LOG]: Sent UDP request" << endl;
 
     addrlen = sizeof(addr);
     response.clear();
     n = BUFFERSIZE;
-    cout << "[LOG]: Receiving UDP response" << endl;
+    //cout << "[LOG]: Receiving UDP response" << endl;
     while (n == BUFFERSIZE) {
         n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n == -1) {
@@ -91,7 +91,7 @@ void sendReceiveUDPRequest(string &message, int size, string &response) {
         concatenateString(response, buffer, n);
         //total_received += n;
     }
-    cout << "[LOG]: Received UDP response of size " <<  response.size() << endl;
+    //cout << "[LOG]: Received UDP response of size " <<  response.size() << endl;
 
     // return total_received;
 }
@@ -435,15 +435,13 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 cout << "Syntax error" << endl;
                 break;
         }
-    }
-    catch(string error)
-    {
+    } catch(string error){
         cout << error << endl;
-    }
+    } 
 }
 
 int sendTCPmessage(int const &fd, string &message, int size) {
-    cout << "[LOG]: Sending TCP request" << endl;
+    //cout << "[LOG]: Sending TCP request" << endl;
     int total_sent = 0;
     int n, to_send;
     while (total_sent < size) {
@@ -454,7 +452,7 @@ int sendTCPmessage(int const &fd, string &message, int size) {
         }
         total_sent += n;    
     }
-    cout << "[LOG]: Sent TCP response" << endl;
+    // cout << "[LOG]: Sent TCP response" << endl;
     return total_sent;
 }
 
@@ -463,7 +461,7 @@ int receiveTCPsize(int const &fd, int const &size, string &response) {
     int n;
     char tmp[128];
     response.clear();
-    cout << "[LOG]: Receiving TCP request by size" << endl;
+    //cout << "[LOG]: Receiving TCP request by size" << endl;
     while (total_received < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -472,7 +470,7 @@ int receiveTCPsize(int const &fd, int const &size, string &response) {
         concatenateString(response, tmp, n);
         total_received += n;
     }
-    cout << "[LOG]: Received response of size " << total_received << endl;
+    //cout << "[LOG]: Received response of size " << total_received << endl;
 
     return total_received;
 }
@@ -483,7 +481,7 @@ int receiveTCPspace(int fd, int size, string &response) {
     int n;
     char tmp[128];
     response.clear();
-    cout << "[LOG]: Receiving TCP request by spaces" << endl;
+    //cout << "[LOG]: Receiving TCP request by spaces" << endl;
     while (total_spaces < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -495,7 +493,7 @@ int receiveTCPspace(int fd, int size, string &response) {
             total_spaces++;
         }
     }
-    cout << "[LOG]: Received response of size " << total_received << endl;
+    //cout << "[LOG]: Received response of size " << total_received << endl;
 
     return total_received;
 }
@@ -506,7 +504,7 @@ int receiveTCPend(int fd, string &response) {
     char tmp[128];
     response.clear();
     
-    cout << "[LOG]: Receiving TCP until the end" << endl;
+    //cout << "[LOG]: Receiving TCP until the end" << endl;
     while (true) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -518,7 +516,7 @@ int receiveTCPend(int fd, string &response) {
         total_received += n;
         
     }
-    cout << "[LOG]: Received response of size " << total_received << endl;
+    //cout << "[LOG]: Received response of size " << total_received << endl;
 
     return total_received;
 }
@@ -539,7 +537,7 @@ int receiveTCPfile(int fd, int size, string &fname) {
         fout.write(tmp, n);
         total_received += n;
     }
-    cout << "[LOG]: Received file of size " << total_received << " fsize is " << size << endl;
+    //cout << "[LOG]: Received file of size " << total_received << " fsize is " << size << endl;
     fout.close();
     
     return total_received;
@@ -609,7 +607,7 @@ void handleTCPRequest(int request, vector<string> inputs) {
                 message += openJPG(fname) + "\n";
 
                 sendTCPmessage(fd_tcp, message, message.size());
-                 
+
                 n = receiveTCPsize(fd_tcp, 7, message);
                 if (message.size() < 7) {
                     throw string("Invalid response from server");
@@ -749,11 +747,19 @@ void handleTCPRequest(int request, vector<string> inputs) {
     }
     
     close(fd_tcp);
-    cout << "[LOG]: closed tcp connection" << endl;
+    // cout << "[LOG]: closed tcp connection" << endl;
     return;
 }
 
 int main(int argc, char *argv[]) {
+
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = SIG_IGN;
+    if (sigaction(SIGPIPE, &act, NULL) == -1) {
+        exit(EXIT_FAILURE);   
+    }
+
     switch(argc){
         case(1):{
             hostname = DEFAULT_HOSTNAME;

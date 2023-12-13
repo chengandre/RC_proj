@@ -259,14 +259,17 @@ bool checkAuctionDuration(string const &aid) {
     // false if should be closed and goes calls endAuction
     string startTxt = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
     ifstream fin(startTxt);
+    if (!fin) {
+        throw string("Couldn't open start txt to read");
+    }
     string content;
     vector<string> content_arguments;
     getline(fin, content);
     fin.close();
 
     parseInput(content, content_arguments);
-    
-    string duration = content_arguments[4];
+
+    string duration = content_arguments.at(4);
     string start_fulltime = content_arguments.back();
     string current_fulltime = getTime();
 
@@ -290,15 +293,16 @@ string handleUDPRequest(char request[]) {
 
     parseInput(request, request_arguments);
     // verificar syntax do request (espacos, \n)
-    request_type = parseCommand(request_arguments[0]);
+    request_type = parseCommand(request_arguments.at(0));
 
     try {
         switch(request_type) {
             case LOGIN: {
+                cout << "[LOG]: UDP Got LOGIN request" << endl;
                 response = "RLI ";
 
-                string uid = request_arguments[1];
-                string pass = request_arguments[2];
+                string uid = request_arguments.at(1);
+                string pass = request_arguments.at(2);
 
                 checkUID(uid);
                 checkPasswordSyntax(pass);
@@ -325,9 +329,11 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case LOGOUT: {
+                cout << "[LOG]: UDP Got LOGOUT request" << endl;
+
                 response = "RLO ";
-                string uid = request_arguments[1];
-                string pass = request_arguments[2];
+                string uid = request_arguments.at(1);
+                string pass = request_arguments.at(2);
                 
                 checkUID(uid);
                 checkPasswordSyntax(pass);
@@ -352,9 +358,11 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case UNREGISTER: {
+                cout << "[LOG]: UDP Got UNREGISTER request" << endl;
+
                 response = "RUR ";
-                string uid = request_arguments[1];
-                string pass = request_arguments[2];
+                string uid = request_arguments.at(1);
+                string pass = request_arguments.at(2);
 
                 checkUID(uid);
                 checkPasswordSyntax(pass);
@@ -378,8 +386,10 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case MYAUCTIONS: {
+                cout << "[LOG]: UDP Got MYAUCTIONS request" << endl;
+
                 response = "RMA ";
-                string uid = request_arguments[1];
+                string uid = request_arguments.at(1);
 
                 checkUID(uid);
 
@@ -391,25 +401,29 @@ string handleUDPRequest(char request[]) {
                 } else if (!exists(loginTxt)) {
                     response += "NLG\n";
                 } else {
-                    response += "OK ";
+                    string tmp_response;
+                    tmp_response += "OK"; 
 
                     string aid;
                     for (auto const &entry : filesystem::directory_iterator(hostedDir)) {
                         aid = getSubString(entry.path().string(), 20, 3);
                         if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
                             // terminou ou ja esta fora de prazo
-                            response += aid + " 0 ";
+                            tmp_response += " " + aid + " 0";
                         } else {
-                            response += aid + " 1 ";
+                            tmp_response += " " + aid + " 1";
                         }
                     }
+                    response += tmp_response;
                     response += "\n";
                 }
                 break;
             }
             case MYBIDS: {
+                cout << "[LOG]: UDP Got MYBIDS request" << endl;
+
                 response = "RMB ";
-                string uid = request_arguments[1];
+                string uid = request_arguments.at(1);
 
                 checkUID(uid);
 
@@ -420,46 +434,50 @@ string handleUDPRequest(char request[]) {
                 } else if (!exists(loginTxt)) {
                     response += "NLG\n";
                 } else {
-                    response += "OK ";
-
+                    string tmp_response = "OK";
                     string aid;
                     for (auto const &entry : filesystem::directory_iterator(biddedDir)) {
                         aid = getSubString(entry.path().string(), 20, 3);
                         if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
                             // terminou ou ja esta fora de prazo
-                            response += aid + " 0 ";
+                            tmp_response += " " + aid + " 0";
                         } else {
-                            response += aid + " 1 ";
+                            tmp_response += " " + aid + " 1";
                         }
                     }
+                    response += tmp_response;
                     response += "\n";
                 }
                 break;
             }
             case LIST:{
+                cout << "[LOG]: UDP Got LIST request" << endl;
+
                 response = "RLS ";
                 string auctionsDir = "AUCTIONS";
                 if (filesystem::is_empty(auctionsDir)) {
                     response += "NOK\n";
                 } else {
-                    response += "OK ";
+                    string tmp_response = "OK";
 
                     string aid;
                     for (auto const &entry : filesystem::directory_iterator(auctionsDir)) {
                         aid = getSubString(entry.path().string(), 9, 3);
                         if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
-                            response += aid + " 0 ";
+                            tmp_response += " " + aid + " 0";
                         } else {
-                            response += aid + " 1 ";
+                            tmp_response += " " + aid + " 1";
                         }
                     }
+                    response += tmp_response;
                     response += "\n";
                 }
                 break;
             }
             case SHOW_RECORD: {
+                cout << "[LOG]: UDP Got SHOW_RECORD request" << endl;
                 response = "RRC ";
-                string aid = request_arguments[1];
+                string aid = request_arguments.at(1);
                 checkAID(aid);
                 
                 string auctionDir = "AUCTIONS/" + aid;
@@ -482,13 +500,13 @@ string handleUDPRequest(char request[]) {
                     parseInput(content, content_arguments);
                     fin.close();
 
-                    string uid = content_arguments[0];
-                    string auction_name = content_arguments[1];
-                    string fname = content_arguments[2];
-                    string start_value = content_arguments[3];
-                    string duration = content_arguments[4];
-                    string date = content_arguments[5];
-                    string time = content_arguments[6];
+                    string uid = content_arguments.at(0);
+                    string auction_name = content_arguments.at(1);
+                    string fname = content_arguments.at(2);
+                    string start_value = content_arguments.at(3);
+                    string duration = content_arguments.at(4);
+                    string date = content_arguments.at(5);
+                    string time = content_arguments.at(6);
 
                     response += uid + " ";
                     response += auction_name + " ";
@@ -523,11 +541,11 @@ string handleUDPRequest(char request[]) {
                             parseInput(content, content_arguments);
                             fin.close();
 
-                            string uid = content_arguments[0];
-                            string value = content_arguments[1];
-                            string date = content_arguments[2];
-                            string time = content_arguments[3];
-                            string seconds = content_arguments[4];
+                            string uid = content_arguments.at(0);
+                            string value = content_arguments.at(1);
+                            string date = content_arguments.at(2);
+                            string time = content_arguments.at(3);
+                            string seconds = content_arguments.at(4);
                             response += "B ";
                             response += uid + " ";
                             response += value+ " ";
@@ -553,9 +571,9 @@ string handleUDPRequest(char request[]) {
                         parseInput(content, content_arguments);
                         fin.close();
 
-                        string date = content_arguments[0];
-                        string time = content_arguments[1];
-                        string duration = content_arguments[2];
+                        string date = content_arguments.at(0);
+                        string time = content_arguments.at(1);
+                        string duration = content_arguments.at(2);
 
                         response += "E ";
                         response += date + " ";
@@ -566,7 +584,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             default:
-                cout << "[LOG]: Request Syntax error, couldn't identified it" << endl;
+                cout << "[LOG]: UDP Request Syntax error, couldn't identified it" << endl;
                 response = "ERR\n";
         }
     }
@@ -647,7 +665,7 @@ int receiveTCPsize(int fd, int size, string &response) {
     int n;
     char tmp[128];
     response.clear();
-    cout << "[LOG]: " << getpid() << " Receiving TCP request by size" << endl;
+    //cout << "[LOG]: " << getpid() << " Receiving TCP request by size" << endl;
     while (total_received < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -656,7 +674,7 @@ int receiveTCPsize(int fd, int size, string &response) {
         concatenateString(response, tmp, n);
         total_received += n;
     }
-    cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
+    //cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
 
     return total_received;
 }
@@ -667,7 +685,7 @@ int receiveTCPspace(int fd, int size, string &response) {
     int total_spaces = 0;
     char tmp[128];
     response.clear();
-    cout << "[LOG]: " << getpid() << " Receiving TCP request by spaces" << endl;
+    //cout << "[LOG]: " << getpid() << " Receiving TCP request by spaces" << endl;
     while (total_spaces < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -679,7 +697,7 @@ int receiveTCPspace(int fd, int size, string &response) {
             total_spaces++;
         }
     }
-    cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
+    //cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
 
     return total_received;
 }
@@ -690,7 +708,7 @@ int receiveTCPend(int fd, string &response) {
     int n;
     response.clear();
     
-    cout << "[LOG]: Receiving TCP until the end" << endl;
+    //cout << "[LOG]: Receiving TCP until the end" << endl;
     while (true) {
         n = read(fd, tmp, 1);
         if (n == -1) {
@@ -702,7 +720,7 @@ int receiveTCPend(int fd, string &response) {
         total_received += n;
         
     }
-    cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
+    //cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
 
     return total_received;
 }
@@ -720,7 +738,7 @@ int receiveTCPfile(int fd, int size, string &fname, string &aid) {
         throw string("Error creating asset file");
     }
 
-    cout << "[LOG]: " << getpid() << " Receiving TCP file" << endl;
+    //cout << "[LOG]: " << getpid() << " Receiving TCP file" << endl;
     while (total_received < size) {
         to_read = min(128, size-total_received);
         n = read(fd, tmp, to_read);
@@ -733,14 +751,14 @@ int receiveTCPfile(int fd, int size, string &fname, string &aid) {
         total_received += n;
     }
 
-    cout << "[LOG]: " << getpid() << " Received file of size " << total_received << " fsize is " << size << endl;
+    //cout << "[LOG]: " << getpid() << " Received file of size " << total_received << " fsize is " << size << endl;
     fout.close();
 
     return total_received;
 }
 
 int sendTCPresponse(int fd, string &message, int size) {
-    cout << "[LOG]: " << getpid() << " Sending TCP response" << endl;
+    //cout << "[LOG]: " << getpid() << " Sending TCP response" << endl;
     int total_sent = 0;
     int n;
     while (total_sent < size) {
@@ -752,7 +770,7 @@ int sendTCPresponse(int fd, string &message, int size) {
         total_sent += n;
     }
 
-    cout << "[LOG]: " << getpid() << " Sent TCP response" << endl;
+    //cout << "[LOG]: " << getpid() << " Sent TCP response" << endl;
     return total_sent;
 }
 
@@ -813,11 +831,11 @@ void createStartAuctionText(vector<string> &arguments, string &aid) {
     // creates start_aid.txt
     string name, tmp;
 
-    tmp = arguments[0] + " "; // UID
-    tmp += arguments[2] + " "; // Name
-    tmp += arguments[5] + " "; // fname
-    tmp += arguments[3] + " "; // start_value
-    tmp += arguments[4] + " "; // time active
+    tmp = arguments.at(0) + " "; // UID
+    tmp += arguments.at(2) + " "; // Name
+    tmp += arguments.at(5) + " "; // fname
+    tmp += arguments.at(3) + " "; // start_value
+    tmp += arguments.at(4) + " "; // time active
     tmp += getDateAndTime();
 
     name = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
@@ -850,7 +868,6 @@ bool checkOwner(string &uid, string &aid) {
 void handleTCPRequest(int &fd, SharedAID *sharedAID) {
     // handles TCP request from user (receives, handles and answers)
 
-    cout << "[LOG]: " << getpid() << " Got one request" << endl;
     string request, tmp, response;
     vector<string> request_arguments;
     int request_type;
@@ -863,34 +880,36 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
         } else {
             switch (request_type) {
                 case OPEN: {
+                    cout << "[LOG]: " << getpid() << " Got OPEN request" << endl;
+
                     response = "ROA ";
 
                     receiveTCPspace(fd, 7, request);
                     parseInput(request, request_arguments);
 
                     ssize_t fsize;
-                    stringstream stream(request_arguments[6]);
+                    stringstream stream(request_arguments.at(6));
                     stream >> fsize;
 
-                    checkUID(request_arguments[0]);
-                    checkPasswordSyntax(request_arguments[1]);
-                    checkName(request_arguments[2]);
-                    checkStartValue(request_arguments[3]);
-                    checkDuration(request_arguments[4]);
-                    checkFileName(request_arguments[5]);
-                    checkFileSize(request_arguments[6]);
+                    checkUID(request_arguments.at(0));
+                    checkPasswordSyntax(request_arguments.at(1));
+                    checkName(request_arguments.at(2));
+                    checkStartValue(request_arguments.at(3));
+                    checkDuration(request_arguments.at(4));
+                    checkFileName(request_arguments.at(5));
+                    checkFileSize(request_arguments.at(6));
 
-                    if (!checkLogin(request_arguments[0])) {
+                    if (!checkLogin(request_arguments.at(0))) {
                         cout << "[LOG]: User not logged in" << endl;
                         response += "NLG\n";
-                    } else if (!checkPassword(request_arguments[0], request_arguments[1])) {
+                    } else if (!checkPassword(request_arguments.at(0), request_arguments.at(1))) {
                         cout << "[LOG]: Incorrect password" << endl;
                         response += "NOK\n";
                     } else {
                         string aid = getNextAID(sharedAID);
 
                         createAuctionDir(aid);
-                        receiveTCPfile(fd, fsize, request_arguments[5], aid);
+                        receiveTCPfile(fd, fsize, request_arguments.at(5), aid);
                         receiveTCPsize(fd, 1, tmp);
                         if (tmp.at(0) != '\n') {
                             deleteAuctionDir(aid);
@@ -898,7 +917,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         }
                         createStartAuctionText(request_arguments, aid);
 
-                        tmp = "USERS/" + request_arguments[0] + "/HOSTED/" + aid + ".txt"; // create hosted in user folder
+                        tmp = "USERS/" + request_arguments.at(0) + "/HOSTED/" + aid + ".txt"; // create hosted in user folder
                         ofstream fout(tmp);
                         if (!fout) {
                             deleteAuctionDir(aid);
@@ -911,6 +930,8 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     break;
                 }
                 case CLOSE: {
+                    cout << "[LOG]: " << getpid() << " Got CLOSE request" << endl;
+
                     response = "RCL ";
                     int n = receiveTCPsize(fd, 20, request);
                     if (n < 20 || request.back() != '\n') {
@@ -918,9 +939,9 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     }
                     parseInput(request, request_arguments);
 
-                    string uid = request_arguments[0];
-                    string pass = request_arguments[1];
-                    string aid = request_arguments[2];
+                    string uid = request_arguments.at(0);
+                    string pass = request_arguments.at(1);
+                    string aid = request_arguments.at(2);
                     checkUID(uid);
                     checkPasswordSyntax(pass);
                     checkAID(aid);
@@ -952,7 +973,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         }
                         getline(fin, start_content);
                         parseInput(start_content, start_content_arguments);
-                        int start_time = stoi(start_content_arguments[7]);
+                        int start_time = stoi(start_content_arguments.at(7));
 
                         string content = getDateAndDuration(start_time);
 
@@ -968,6 +989,8 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     break;
                 }
                 case SHOW_ASSET: {
+                    cout << "[LOG]: " << getpid() << " Got SHOW_ASSET request" << endl;
+
                     response = "RSA ";
                     int n = receiveTCPsize(fd, 4, request);
                     if (n < 4 || request.back() != '\n') {
@@ -975,7 +998,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     }
                     parseInput(request, request_arguments);
 
-                    string aid = request_arguments[0];
+                    string aid = request_arguments.at(0);
                     checkAID(aid);
 
                     string auctionDir = "AUCTIONS/" + aid;
@@ -1002,6 +1025,8 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     break;
                 }
                 case BID:{
+                    cout << "[LOG]: " << getpid() << " Got BID request" << endl;
+
                     response = "RBD ";
                     int n = receiveTCPspace(fd, 3, request);
                     if (n != 20) {
@@ -1015,9 +1040,9 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         throw string("Syntax error on bid request");
                     }
 
-                    string uid = request_arguments[0];
-                    string pass = request_arguments[1];
-                    string aid = request_arguments[2];
+                    string uid = request_arguments.at(0);
+                    string pass = request_arguments.at(1);
+                    string aid = request_arguments.at(2);
                     checkUID(uid);
                     checkPasswordSyntax(pass);
                     checkAID(aid);
@@ -1058,7 +1083,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                             getline(fin, content);
                             fin.close();
                             parseInput(content, content_arguments);
-                            highest_value = content_arguments[1];
+                            highest_value = content_arguments.at(1);
                         }
 
                         if (value.compare(highest_value) <= 0) {
@@ -1079,8 +1104,8 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         parseInput(start_content, start_content_arguments);
                         //fin.read(tmp, 6);
 
-                        string auctionOwner = start_content_arguments[0];
-                        int start_time = stoi(start_content_arguments[7]);
+                        string auctionOwner = start_content_arguments.at(0);
+                        int start_time = stoi(start_content_arguments.at(7));
 
                         if (auctionOwner == uid) {
                             cout << "[LOG]: On bid, bid on own auction" << endl;
@@ -1100,7 +1125,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         fout << content;
                         fout.close();
 
-                        string userBidTxt = "USERS/" + uid + "/BIDDED/" + value + ".txt";
+                        string userBidTxt = "USERS/" + uid + "/BIDDED/" + aid + ".txt";
                         fout.open(userBidTxt);
                         if (!fout) {
                             removeFile(bidTxt);

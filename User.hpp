@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <fstream>
 #include <filesystem>
+#include <csignal>
 
 #define DEFAULT_HOSTNAME "localhost"
 #define DEFAULT_PORT "58030"
