@@ -284,7 +284,7 @@ bool checkAuctionDuration(string const &aid) {
     return true;
 }
 
-string handleUDPRequest(char request[]) {
+string handleUDPRequest(char request[], char host[], char service[]) {
 
     // handle UDP request from user, return the response to send
     string response;
@@ -298,7 +298,7 @@ string handleUDPRequest(char request[]) {
     try {
         switch(request_type) {
             case LOGIN: {
-                cout << "[LOG]: UDP Got LOGIN request" << endl;
+                cout << "[LOG]: UDP Got LOGIN request from " << host << ":" << service << endl;
                 response = "RLI ";
 
                 string uid = request_arguments.at(1);
@@ -329,7 +329,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case LOGOUT: {
-                cout << "[LOG]: UDP Got LOGOUT request" << endl;
+                cout << "[LOG]: UDP Got LOGOUT request from " << host << ":" << service << endl;
 
                 response = "RLO ";
                 string uid = request_arguments.at(1);
@@ -358,7 +358,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case UNREGISTER: {
-                cout << "[LOG]: UDP Got UNREGISTER request" << endl;
+                cout << "[LOG]: UDP Got UNREGISTER request from " << host << ":" << service << endl;
 
                 response = "RUR ";
                 string uid = request_arguments.at(1);
@@ -386,7 +386,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case MYAUCTIONS: {
-                cout << "[LOG]: UDP Got MYAUCTIONS request" << endl;
+                cout << "[LOG]: UDP Got MYAUCTIONS request from " << host << ":" << service << endl;
 
                 response = "RMA ";
                 string uid = request_arguments.at(1);
@@ -426,7 +426,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case MYBIDS: {
-                cout << "[LOG]: UDP Got MYBIDS request" << endl;
+                cout << "[LOG]: UDP Got MYBIDS request from " << host << ":" << service << endl;
 
                 response = "RMB ";
                 string uid = request_arguments.at(1);
@@ -464,7 +464,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case LIST:{
-                cout << "[LOG]: UDP Got LIST request" << endl;
+                cout << "[LOG]: UDP Got LIST request from " << host << ":" << service << endl;
 
                 response = "RLS ";
                 string auctionsDir = "AUCTIONS";
@@ -494,7 +494,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case SHOW_RECORD: {
-                cout << "[LOG]: UDP Got SHOW_RECORD request" << endl;
+                cout << "[LOG]: UDP Got SHOW_RECORD request from " << host << ":" << service << endl;
                 response = "RRC ";
                 string aid = request_arguments.at(1);
                 checkAID(aid);
@@ -604,7 +604,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             default:
-                cout << "[LOG]: UDP Request Syntax error, couldn't identified it" << endl;
+                cout << "[LOG]: UDP Request Syntax error from " << host << ":" << service << endl;
                 response = "ERR\n";
         }
     }
@@ -668,12 +668,10 @@ void startUDP() {
             cout << "Error reading request from UDP socket" << endl;
             response = "ERR\n";
         } else {
-            if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), 0)) != 0) {
+            if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), NI_NUMERICHOST)) != 0) {
                 cout << "[LOG]: UDP Error getnameinfo: " << gai_strerror(errcode) << endl;
-            } else {
-                cout << "[LOG]: UDP got a request from " << host << ":" << service << endl;
-            }
-            response = handleUDPRequest(buffer);
+            } 
+            response = handleUDPRequest(buffer, host, service);
         }
 
         cout << "[LOG]: UDP sending response: " << response;
@@ -899,7 +897,7 @@ bool checkOwner(string &uid, string &aid) {
     return strcmp(uid.c_str(), tmp);
 }
 
-void handleTCPRequest(int &fd, SharedAID *sharedAID) {
+void handleTCPRequest(int &fd, SharedAID *sharedAID, char host[], char service[]) {
     // handles TCP request from user (receives, handles and answers)
 
     string request, tmp, response;
@@ -914,7 +912,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
         } else {
             switch (request_type) {
                 case OPEN: {
-                    cout << "[LOG]: " << getpid() << " Got OPEN request" << endl;
+                    cout << "[LOG]: " << getpid() << " Got OPEN request from " << host << ":" << service << endl;
 
                     response = "ROA ";
 
@@ -964,7 +962,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     break;
                 }
                 case CLOSE: {
-                    cout << "[LOG]: " << getpid() << " Got CLOSE request" << endl;
+                    cout << "[LOG]: " << getpid() << " Got CLOSE request from " << host << ":" << service << endl;
 
                     response = "RCL ";
                     int n = receiveTCPsize(fd, 20, request);
@@ -1023,7 +1021,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     break;
                 }
                 case SHOW_ASSET: {
-                    cout << "[LOG]: " << getpid() << " Got SHOW_ASSET request" << endl;
+                    cout << "[LOG]: " << getpid() << " Got SHOW_ASSET request from " << host << ":" << service << endl;
 
                     response = "RSA ";
                     int n = receiveTCPsize(fd, 4, request);
@@ -1059,7 +1057,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     break;
                 }
                 case BID:{
-                    cout << "[LOG]: " << getpid() << " Got BID request" << endl;
+                    cout << "[LOG]: " << getpid() << " Got BID request from " << host << ":" << service << endl;
 
                     response = "RBD ";
                     int n = receiveTCPspace(fd, 3, request);
@@ -1172,8 +1170,10 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                     }
                     break;
                 }
-                default:
-                    throw string("Couldn't identify TCP request");
+                default:{
+                    string target = "[LOG]: " + to_string(getpid()) + " Couldn't identify TCP request from " + host + ":" + service + "\n";
+                    throw target;
+                }
             }
         }
     }
@@ -1187,7 +1187,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
         response += "ERR\n";
     }
 
-    cout << "[LOG]: " << getpid() << " Sending response " << response;
+    // cout << "[LOG]: " << getpid() << " Sending response " << response;
     sendTCPresponse(fd, response, response.size());
 
     close(fd);
@@ -1262,13 +1262,11 @@ void startTCP(SharedAID *sharedAID) {
             int on = 1;
             setsockopt(tcp_child, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
-            if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), 0)) != 0) {
+            if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), NI_NUMERICHOST)) != 0) {
                 cout << "[LOG]: TCP Error getnameinfo: " << gai_strerror(errcode) << endl;
-            } else {
-                cout << "[LOG]: " << getpid() << " will be handling request from " << host << ":" << service << endl;
             }
             
-            handleTCPRequest(tcp_child, sharedAID);
+            handleTCPRequest(tcp_child, sharedAID, host, service);
             if (shmdt(sharedAID) == -1) {
                 cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
             }

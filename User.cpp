@@ -7,9 +7,9 @@ int fd_udp;
 socklen_t addrlen;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
-string hostname, port, input;
+string hostname, port;
 char buffer[BUFFERSIZE];
-vector<string> inputs, userInfo;
+vector<string> userInfo;
 bool loggedIn = false;
 
 int parseCommand(string &command) {
@@ -331,7 +331,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
 
                 message = "SRC " + aid + "\n";
                 sendReceiveUDPRequest(message, message.length(), response);
-                
+
                 if (response.size() < 7 || response.back() != '\n') {
                     throw string("Invalid response from server");
                 }
@@ -543,7 +543,7 @@ int receiveTCPfile(int fd, int size, string &fname) {
     // receive image directly into file
 }
 
-void handleTCPRequest(int request, vector<string> inputs) {
+void handleTCPRequest(int request, vector<string> input_arguments) {
     //cout << "Handling TCP Request" << endl;
 
     int n;
@@ -589,10 +589,10 @@ void handleTCPRequest(int request, vector<string> inputs) {
             case OPEN: {
                 if (!loggedIn) throw string("User not logged in");
 
-                string auction_name = inputs[1];
-                string fname = inputs[2];
-                string start_value = inputs[3];
-                string duration = inputs[4];
+                string auction_name = input_arguments[1];
+                string fname = input_arguments[2];
+                string start_value = input_arguments[3];
+                string duration = input_arguments[4];
                 checkName(auction_name);
                 checkFileName(fname);
                 checkStartValue(start_value);
@@ -601,7 +601,6 @@ void handleTCPRequest(int request, vector<string> inputs) {
                 message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + auction_name + " ";
                 message += start_value + " " + duration + " " + fname + " ";
                 tmp = openJPG(fname);
-                // filesystem::file_size(inputs[2]);
                 message += to_string(tmp.size()) + " ";
                 message += openJPG(fname) + "\n";
 
@@ -633,7 +632,7 @@ void handleTCPRequest(int request, vector<string> inputs) {
             case CLOSE: {
                 if (!loggedIn) throw string("User not logged in");
 
-                string aid = inputs[1];
+                string aid = input_arguments[1];
                 checkAID(aid);
 
                 message = "CLS " + userInfo[0] + " " + userInfo[1] + " " + aid + "\n";
@@ -671,7 +670,7 @@ void handleTCPRequest(int request, vector<string> inputs) {
                 break;
             }
             case SHOW_ASSET: {
-                string aid = inputs[1];
+                string aid = input_arguments[1];
                 checkAID(aid);
 
                 message =  "SAS " + aid + "\n";
@@ -710,12 +709,12 @@ void handleTCPRequest(int request, vector<string> inputs) {
             case BID: {
                 if (!loggedIn) throw string("User not logged in");
 
-                string aid = inputs[1];
-                string value = inputs[2];
+                string aid = input_arguments[1];
+                string value = input_arguments[2];
                 checkAID(aid);
                 checkStartValue(value);
 
-                message = "BID " + userInfo[0] + " " + userInfo[1] + " " + inputs[1] + " " + inputs[2] + "\n";
+                message = "BID " + userInfo[0] + " " + userInfo[1] + " " + aid + " " + value + "\n";
                 sendTCPmessage(fd_tcp, message, message.size());
 
                 n = receiveTCPend(fd_tcp, message);
@@ -826,22 +825,30 @@ int main(int argc, char *argv[]) {
     }
     
     // loop to receive commands
+    string input;
+    vector<string> input_arguments;
     while (true) {
         cout << "> ";
+        input.clear();
+        input_arguments.clear();
         getline(cin, input);
-        parseInput(input, inputs);
-        int request = parseCommand(inputs[0]);
+
+        if (input.size() == 0) continue;
+
+        parseInput(input, input_arguments);
+
+        int request = parseCommand(input_arguments[0]);
         if (request > 0 && request < 8) {
-            handleUDPRequest(request, inputs);
+            handleUDPRequest(request, input_arguments);
         } else if (request >= 8) {
-            handleTCPRequest(request, inputs);
+            handleTCPRequest(request, input_arguments);
         } else if (request == 0) {
             if (loggedIn) {
-                vector<string> inputs;
-                inputs.push_back(" ");
-                inputs.push_back(userInfo[0]);
-                inputs.push_back(userInfo[1]);
-                handleUDPRequest(LOGOUT, inputs);
+                input_arguments.clear();
+                input_arguments.push_back(" ");
+                input_arguments.push_back(userInfo[0]);
+                input_arguments.push_back(userInfo[1]);
+                handleUDPRequest(LOGOUT, input_arguments);
             }
             return EXIT_SUCCESS; 
         } else {
