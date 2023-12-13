@@ -5,6 +5,8 @@
 // maybe change parseInput to splitString cause it is used in other cases
 // bids always have 6 chars? (not necessary?)
 // sort listing
+// ver que auctions ja existem
+// ver se ja existe auction com aid antes de atribuir
 
 using namespace std;
 
@@ -404,9 +406,15 @@ string handleUDPRequest(char request[]) {
                     string tmp_response;
                     tmp_response += "OK"; 
 
-                    string aid;
+                    vector<string> auctionsPath;
                     for (auto const &entry : filesystem::directory_iterator(hostedDir)) {
-                        aid = getSubString(entry.path().string(), 20, 3);
+                        auctionsPath.push_back(entry.path().string());
+                    }
+                    sort(auctionsPath.begin(), auctionsPath.end());
+
+                    string aid;
+                    for (string &path: auctionsPath) {
+                        aid = getSubString(path, 20, 3);
                         if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
                             // terminou ou ja esta fora de prazo
                             tmp_response += " " + aid + " 0";
@@ -435,9 +443,16 @@ string handleUDPRequest(char request[]) {
                     response += "NLG\n";
                 } else {
                     string tmp_response = "OK";
-                    string aid;
+
+                    vector<string> bidsPath;
                     for (auto const &entry : filesystem::directory_iterator(biddedDir)) {
-                        aid = getSubString(entry.path().string(), 20, 3);
+                        bidsPath.push_back(entry.path().string());
+                    }
+                    sort(bidsPath.begin(), bidsPath.end());
+
+                    string aid;
+                    for (string &entry : bidsPath) {
+                        aid = getSubString(entry, 20, 3);
                         if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
                             // terminou ou ja esta fora de prazo
                             tmp_response += " " + aid + " 0";
@@ -460,9 +475,15 @@ string handleUDPRequest(char request[]) {
                 } else {
                     string tmp_response = "OK";
 
-                    string aid;
+                    vector<string> auctionsPath;
                     for (auto const &entry : filesystem::directory_iterator(auctionsDir)) {
-                        aid = getSubString(entry.path().string(), 9, 3);
+                        auctionsPath.push_back(entry.path().string());
+                    }
+                    sort(auctionsPath.begin(), auctionsPath.end());
+
+                    string aid;
+                    for (string &entry : auctionsPath) {
+                        aid = getSubString(entry, 9, 3);
                         if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
                             tmp_response += " " + aid + " 0";
                         } else {
@@ -1090,7 +1111,9 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                             highest_value = content_arguments.at(1);
                         }
 
-                        if (value.compare(highest_value) <= 0) {
+                        int ihighest = stoi(highest_value);
+                        int ivalue = stoi(value);
+                        if (ivalue <= ihighest) {
                             cout << "[LOG]: On bid, new bid is not higher than the current highest bid" << endl;
                             response += "REF\n";
                             break;
