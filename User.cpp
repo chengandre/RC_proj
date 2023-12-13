@@ -545,7 +545,7 @@ int receiveTCPfile(int fd, int size, string &fname) {
 }
 
 void handleTCPRequest(int request, vector<string> inputs) {
-    cout << "Handling TCP Request" << endl;
+    //cout << "Handling TCP Request" << endl;
 
     int n;
     string message, tmp;
@@ -709,6 +709,8 @@ void handleTCPRequest(int request, vector<string> inputs) {
                 break;
             }
             case BID: {
+                if (!loggedIn) throw string("User not logged in");
+                
                 string aid = inputs[1];
                 string value = inputs[2];
                 checkAID(aid);
@@ -724,7 +726,7 @@ void handleTCPRequest(int request, vector<string> inputs) {
 
                 parseInput(message, message_arguments);
                 if (message_arguments[1] == "NOK") {
-                    cout << "Given auction is not active" << endl;
+                    cout << "Given auction doesn't exist/ is not active/ wrong password" << endl;
                 } else if (message_arguments[1] == "ACC") {
                     cout << "Bid has been accepted" << endl;
                 } else if (message_arguments[1] == "REF") {

@@ -593,6 +593,10 @@ string handleUDPRequest(char request[]) {
         cout << error << endl;
         response += "ERR\n";
     }
+    catch (exception& ex) {
+        cout << ex.what() << endl;
+        response += "ERR\n";
+    }
 
     return response;
 }
@@ -1142,9 +1146,13 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
             }
         }
     }
-    catch(string error)
+    catch (string error)
     {
         cout << error << endl;
+        response += "ERR\n";
+    }
+    catch (exception& ex) {
+        cout << ex.what() << endl;
         response += "ERR\n";
     }
 
