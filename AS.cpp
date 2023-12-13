@@ -203,7 +203,7 @@ void endAuction(string const &aid, int const &itime) {
     char time_str[30];
     time_t ttime = itime;
     struct tm *end_time = gmtime(&ttime);
-    snprintf(time_str, 30, "%4d−%02d−%02d %02d:%02d:%02d",
+    snprintf(time_str, 30, "%4d\u002d%02d\u002d%02d %02d:%02d:%02d",
             end_time->tm_year + 1900, end_time->tm_mon + 1,end_time->tm_mday, 
             end_time->tm_hour , end_time->tm_min , end_time->tm_sec);
     
