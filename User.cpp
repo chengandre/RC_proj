@@ -465,7 +465,7 @@ int receiveTCPsize(int const &fd, int const &size, string &response) {
     while (total_received < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
-            throw string("Error while reading from TCP socket");
+            throw string("Error while reading from TCP socket, probably due to Syntax Error");
         }
         concatenateString(response, tmp, n);
         total_received += n;
@@ -485,7 +485,7 @@ int receiveTCPspace(int fd, int size, string &response) {
     while (total_spaces < size) {
         n = read(fd, tmp, 1);
         if (n == -1) {
-            throw string("Error while reading from TCP socket");
+            throw string("Error while reading from TCP socket, probably due to Syntax Error");
         }
         concatenateString(response, tmp, n);
         total_received += n;
@@ -508,7 +508,7 @@ int receiveTCPend(int fd, string &response) {
     while (true) {
         n = read(fd, tmp, 1);
         if (n == -1) {
-            throw string("Error while reading from TCP socket");
+            throw string("Error while reading from TCP socket, probably due to Syntax Error");
         } else if (tmp[0] == '\n') {
             break;
         }
@@ -532,7 +532,7 @@ int receiveTCPfile(int fd, int size, string &fname) {
         n = read(fd, tmp, to_read);
         if (n == -1) {
             fout.close();
-            throw string("Error while reading from TCP socket");
+            throw string("Error while reading from TCP socket, probably due to Syntax Error");
         }
         fout.write(tmp, n);
         total_received += n;
@@ -710,7 +710,7 @@ void handleTCPRequest(int request, vector<string> inputs) {
             }
             case BID: {
                 if (!loggedIn) throw string("User not logged in");
-                
+
                 string aid = inputs[1];
                 string value = inputs[2];
                 checkAID(aid);

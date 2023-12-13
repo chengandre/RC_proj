@@ -1129,7 +1129,6 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         getline(fin, start_content);
                         fin.close();
                         parseInput(start_content, start_content_arguments);
-                        //fin.read(tmp, 6);
 
                         string auctionOwner = start_content_arguments.at(0);
                         int start_time = stoi(start_content_arguments.at(7));
