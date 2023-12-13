@@ -16,7 +16,6 @@ string hostname, port, ip, input;
 char buffer[BUFFERSIZE];
 vector<string> inputs;
 bool verbose = false;
-int auction_number = 0;
 time_t fulltime;
 struct tm *current_time;
 string current_time_str;
@@ -534,7 +533,7 @@ string handleUDPRequest(char request[]) {
                     response += start_value + " ";
                     response += date + " ";
                     response += time + " ";
-                    response += duration + "\n";
+                    response += duration;
 
                     // 50 maior bids = 50 bids mais recentes?
                     string bidsDir = auctionDir + "/BIDS";
@@ -566,18 +565,18 @@ string handleUDPRequest(char request[]) {
                             string date = content_arguments.at(2);
                             string time = content_arguments.at(3);
                             string seconds = content_arguments.at(4);
-                            response += "B ";
+                            response += " B ";
                             response += uid + " ";
                             response += value+ " ";
                             response += date + " ";
                             response += time + " ";
                             response += seconds;
 
-                            if (i == 0) {
-                                response += "\n";
-                            } else {
-                                response += " ";
-                            }
+                            // if (i == 0) {
+                            //     response += "\n";
+                            // } else {
+                            //     response += " ";
+                            // }
                         }
                     }
 
@@ -595,11 +594,12 @@ string handleUDPRequest(char request[]) {
                         string time = content_arguments.at(1);
                         string duration = content_arguments.at(2);
 
-                        response += "E ";
+                        response += " E ";
                         response += date + " ";
                         response += time + " ";
-                        response += duration + "\n";
+                        response += duration;
                     }
+                    response += "\n";
                 }
                 break;
             }
@@ -1365,7 +1365,7 @@ int main(int argc, char *argv[]) {
     int shmid = shmget(key, sizeof(SharedAID), 0666 | IPC_CREAT);
     sharedAID = (SharedAID*) shmat(shmid, (void*)0, 0);
 
-    sharedAID->AID = 0;
+    sharedAID->AID = 1;
     sem_init(&sharedAID->sem, 1, 1);
 
     pid_t pid = fork();

@@ -331,7 +331,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
 
                 message = "SRC " + aid + "\n";
                 sendReceiveUDPRequest(message, message.length(), response);
-
+                
                 if (response.size() < 7 || response.back() != '\n') {
                     throw string("Invalid response from server");
                 }
