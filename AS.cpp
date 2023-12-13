@@ -229,7 +229,7 @@ string getDateAndTime() {
 
     time(&fulltime);
     current_time = gmtime(&fulltime);
-    snprintf(time_str, 30, "%4d−%02d−%02d %02d:%02d:%02d",
+    snprintf(time_str, 30, "%4d\u002d%02d\u002d%02d %02d:%02d:%02d",
             current_time->tm_year + 1900, current_time->tm_mon + 1,current_time->tm_mday, 
             current_time->tm_hour , current_time->tm_min , current_time->tm_sec);
 

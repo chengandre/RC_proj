@@ -357,7 +357,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     checkName(auction_name);
                     checkFileName(fname);
                     checkStartValue(start_value);
-                    // checkDate(date);
+                    checkDate(date);
                     checkHour(hour);
                     checkDuration(duration);
 
@@ -395,7 +395,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                                 bid_duration = response_arguments[++index];
                                 checkUID(bid_uid);
                                 checkStartValue(bid_value);
-                                //checkDate(bid_date);
+                                checkDate(bid_date);
                                 checkHour(bid_hour);
                                 checkDuration(bid_duration);
 
@@ -409,7 +409,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                                 end_date = response_arguments[++index];
                                 end_hour = response_arguments[++index];
                                 end_duration = response_arguments[++index];
-                                //checkDate(end_date);
+                                checkDate(end_date);
                                 checkHour(end_hour);
                                 checkDuration(end_duration);
 
