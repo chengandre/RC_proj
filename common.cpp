@@ -95,17 +95,23 @@ void checkFileSize(string &fsize_str) {
 }
 
 void checkDate(string &date) {
-    if (date.at(0) != '1' && date.at(0) != '2') {
+    if (date.at(4) != '-' || date.at(7) != '-') {
         throw string("Invalid date");
-    } else if (date.at(4) != '-' || date.at(7) != '-') {
-        throw string("Invalid date");
-    }
-    
-    for (int i = 1; i < date.size(); i++) {
-        if (i != 4 && i != 7) {
-            if (!isdigit(date.at(i))) {
-                throw string("Invalid date");
-            }
+    } else {
+        string year = getSubString(date, 0, 4);
+        string month = getSubString(date, 5, 2);
+        string day = getSubString(date, 8, 2);
+
+        int iyear = stoi(year);
+        int imonth = stoi(month);
+        int iday = stoi(day);
+
+        if (iyear < 1970 || iyear > 2100) {
+            throw string("Invalid Date -> Year");
+        } else if (imonth < 1 || imonth > 12) {
+            throw string("Invalid Date -> Month");
+        } else if (iday < 1 || imonth > 31) {
+            throw string("Invalid Date -> Day");
         }
     }
 }
@@ -119,15 +125,15 @@ void checkHour(string &hour) {
         string str_seconds = getSubString(hour, 6, 2);
 
         int hours = stoi(str_hours);
-        int minutes= stoi(str_minutes);
+        int minutes = stoi(str_minutes);
         int seconds = stoi(str_seconds);
 
         if (hours < 0 || hours > 23) {
-            throw string("Invalid hour");
+            throw string("Invalid Time -> Hour");
         } else if (minutes < 0 || minutes > 59) {
-            throw string("Invalid hour");
+            throw string("Invalid Time -> Minutes");
         } else if (seconds < 0 || seconds > 59) {
-            throw string("Invalid hour");
+            throw string("Invalid Time -> Seconds");
         }
     }
 }
@@ -143,14 +149,14 @@ string openJPG(string fname) {
 }
 
 void printVectorString(vector<string> &target) {
-    for (int i = 0; i < target.size(); i++) {
+    for (size_t i = 0; i < target.size(); i++) {
         cout << target[i] << endl;
     }
 }
 
-string getSubString(string const &target, int start, int size) {
+string getSubString(string const &target, size_t start, size_t size) {
     string tmp;
-    int j = 0;
+    size_t j = 0;
     while (j < size && start+j < target.size()) {
         tmp.push_back(target[start+j]);
         j++;

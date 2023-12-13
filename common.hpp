@@ -47,7 +47,7 @@ string openJPG(string fname);
 
 void printVectorString(vector<string> &target);
 
-string getSubString(string const&target, int start, int size);
+string getSubString(string const&target, size_t start, size_t size);
 
 void concatenateString(string &target, char item[], int size);
 

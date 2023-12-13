@@ -1,5 +1,4 @@
 // check if read==0
-// listing function so that they add to a buffer and print everything in the end
 #include "User.hpp"
 #include "common.hpp"
 using namespace std;
@@ -43,21 +42,21 @@ int parseCommand(string &command) {
     }
 }
 
-int indexSpace(int n_spaces, string &target){
-    // finds the index of the nth space
-    int count = 0;
-    int i = 0;
-    while (count < n_spaces && i < target.size()) {
-        if (target[i] == ' ') {
-            count++;
-        }
-        i++;
-    }
-    if (i == target.size()) {
-        return -1;
-    }
-    return i-1;
-}
+// int indexSpace(int n_spaces, string &target){
+//     // finds the index of the nth space
+//     int count = 0;
+//     int i = 0;
+//     while (count < n_spaces && i < target.size()) {
+//         if (target[i] == ' ') {
+//             count++;
+//         }
+//         i++;
+//     }
+//     if (i == target.size()) {
+//         return -1;
+//     }
+//     return i-1;
+// }
 
 void saveJPG(string &data, string &fname) {
     std::ofstream fout(fname, std::ios::binary);
@@ -233,7 +232,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 } else if (response_arguments[1] == "OK") {
                     string to_print;
                     to_print += "Listing auctions from user " + uid + ":\n";
-                    for (int i = 2; i < response_arguments.size() - 1; i += 2) {
+                    for (size_t i = 2; i < response_arguments.size() - 1; i += 2) {
                         to_print += "Auction " + response_arguments[i] + " ";
                         if (response_arguments[i+1] == "0") {
                             to_print += "Ended\n";
@@ -273,7 +272,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 } else if (response_arguments[1] == "OK") {
                     string to_print;
                     to_print += "Listing auctions from user " + uid + " in which has bidded:\n";
-                    for (int i = 2; i < response_arguments.size() - 1; i += 2) {
+                    for (size_t i = 2; i < response_arguments.size() - 1; i += 2) {
                         to_print += "Auction " + response_arguments[i] + " ";
                         if (response_arguments[i+1] == "0") {
                             to_print += "Ended\n";
@@ -308,7 +307,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 } else if (response_arguments[1] == "OK") {
                     string to_print;
                     to_print += "Listing all auctions:\n";
-                    for (int i = 2; i < response_arguments.size() - 1; i += 2) {
+                    for (size_t i = 2; i < response_arguments.size() - 1; i += 2) {
                         to_print += "Auction " + response_arguments[i] + " ";
                         if (response_arguments[i+1] == "0") {
                             to_print += "Ended\n";
@@ -369,7 +368,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     to_print += "Start hour: " + hour + "\n";
                     to_print += "Duration: " + duration + "\n";
 
-                    int index = 8;
+                    size_t index = 8;
                     bool end = false;
                     bool bids = false;
                     string bid_uid;

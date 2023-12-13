@@ -4,9 +4,6 @@
 // remove sigint handler
 // maybe change parseInput to splitString cause it is used in other cases
 // bids always have 6 chars? (not necessary?)
-// sort listing
-// ver que auctions ja existem
-// ver se ja existe auction com aid antes de atribuir
 
 using namespace std;
 
@@ -838,13 +835,23 @@ void deleteAuctionDir(string &aid) {
 
 string getNextAID(SharedAID *sharedAID) {
     // returns the next available AID
-    sem_wait(&sharedAID->sem);
+
+    sem_wait(&sharedAID->sem); // prevents other processes from getting an aid
 
     stringstream ss;
     ss << setw(3) << setfill('0') << sharedAID->AID;
     string aid = ss.str();
+    string auctionDir = "AUCTIONS/" + aid;
     sharedAID->AID++;
-
+    while (exists(auctionDir)) { 
+        // loops until it find an available aid
+        ss.str(string()); // clear ss
+        ss << setw(3) << setfill('0') << sharedAID->AID;
+        aid = ss.str();
+        auctionDir = "AUCTIONS/" + aid;
+        sharedAID->AID++;
+    }
+    
     sem_post(&sharedAID->sem);
 
     return aid;
