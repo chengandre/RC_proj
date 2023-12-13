@@ -239,6 +239,21 @@ string getDateAndTime() {
     return string(time_str) + " " +  ss.str();
 }
 
+string getDateAndDuration(int &start) {
+
+    char time_str[30];
+
+    time(&fulltime);
+    current_time = gmtime(&fulltime);
+    snprintf(time_str, 30, "%4d\u002d%02d\u002d%02d %02d:%02d:%02d",
+            current_time->tm_year + 1900, current_time->tm_mon + 1,current_time->tm_mday, 
+            current_time->tm_hour , current_time->tm_min , current_time->tm_sec);
+
+    int duration = fulltime-start;
+
+    return string(time_str) + " " +  to_string(duration);
+}
+
 bool checkAuctionDuration(string const &aid) {
     // true if auction duration is ok
     // false if should be closed and goes calls endAuction
@@ -260,7 +275,7 @@ bool checkAuctionDuration(string const &aid) {
     int icurrent = stoi(current_fulltime);
 
     if (icurrent > istart + iduration) {
-        endAuction(aid, istart + iduration);
+        endAuction(aid, iduration);
         return false;
     }
     return true;
@@ -928,7 +943,18 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                         cout << "[LOG]: On close uid password don't match" << endl;
                         response += "NOK\n";
                     } else {
-                        string content = getDateAndTime();
+                        string startTxt = auctionDir + "/START_" + aid + ".txt";
+                        string start_content;
+                        vector<string> start_content_arguments;
+                        ifstream fin(startTxt);
+                        if (!fin) {
+                            throw string("Error opening start file to read");
+                        }
+                        getline(fin, start_content);
+                        parseInput(start_content, start_content_arguments);
+                        int start_time = stoi(start_content_arguments[7]);
+
+                        string content = getDateAndDuration(start_time);
 
                         ofstream fout(endTxt);
                         if (!fout) {
@@ -1041,15 +1067,20 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
                             break;
                         }
 
-                        char tmp[6];
                         string startTxt = auctionDir + "/START_" + aid + ".txt";
+                        string start_content;
+                        vector<string> start_content_arguments;
                         ifstream fin(startTxt);
                         if (!fin) {
                             throw string("Couldn't open bid file to read");
                         }
-                        fin.read(tmp, 6);
+                        getline(fin, start_content);
                         fin.close();
-                        string auctionOwner(tmp);
+                        parseInput(start_content, start_content_arguments);
+                        //fin.read(tmp, 6);
+
+                        string auctionOwner = start_content_arguments[0];
+                        int start_time = stoi(start_content_arguments[7]);
 
                         if (auctionOwner == uid) {
                             cout << "[LOG]: On bid, bid on own auction" << endl;
@@ -1065,7 +1096,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID) {
 
                         string content = uid + " ";
                         content += value + " ";
-                        content += getDateAndTime();
+                        content += getDateAndDuration(start_time);
                         fout << content;
                         fout.close();
 
