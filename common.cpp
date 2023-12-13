@@ -27,7 +27,7 @@ void parseInput(char *input, vector<string> &inputs) {
 void checkUID(string &uid) {
     // primeiro digito tem que ser um (foi dito no slack)
     // 6 digitos
-    if ((all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6 && uid.at(0) == '1') == 0) {
+    if ((all_of(uid.begin(), uid.end(), ::isdigit) && uid.length() == 6) == 0) {
         throw string("UID Syntax error");
     }
 }

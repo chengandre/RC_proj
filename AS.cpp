@@ -146,30 +146,32 @@ void Register(string &uid, string &pass) {
     int ret;
 
     userDir = "USERS/" + uid;
-    ret = mkdir(userDir.c_str(), 0700);
-    if (ret == -1) {
-        // no_error = false;
-        // cout << "[LOG]: Couldn't create user directory" << endl;
-        throw string("[LOG]: Couldn't create user directory");
-        // return false;
-    }
+    if (!exists(userDir)) {
+        ret = mkdir(userDir.c_str(), 0700);
+        if (ret == -1) {
+            // no_error = false;
+            // cout << "[LOG]: Couldn't create user directory" << endl;
+            throw string("[LOG]: Couldn't create user directory");
+            // return false;
+        }
 
-    hostedDir = userDir + "/HOSTED";
-    ret = mkdir(hostedDir.c_str(), 0700);
-    if (ret == -1) {
-        // cout << "[LOG]: Couldn't create hosted directory upon registration" << endl;
-        removeDir(userDir);
-        throw string("[LOG]: Couldn't create hosted directory upon registration");
-        // return false;
-    }
+        hostedDir = userDir + "/HOSTED";
+        ret = mkdir(hostedDir.c_str(), 0700);
+        if (ret == -1) {
+            // cout << "[LOG]: Couldn't create hosted directory upon registration" << endl;
+            removeDir(userDir);
+            throw string("[LOG]: Couldn't create hosted directory upon registration");
+            // return false;
+        }
 
-    biddedDir = userDir + "/BIDDED";
-    ret = mkdir(biddedDir.c_str(), 0700);
-    if (ret == -1) {
-        //cout << "[LOG]: Couldn't create bidded directory upon registration" << endl;
-        removeDir(userDir);
-        throw string("[LOG]: Couldn't create bidded directory upon registration");
-        //return false;
+        biddedDir = userDir + "/BIDDED";
+        ret = mkdir(biddedDir.c_str(), 0700);
+        if (ret == -1) {
+            //cout << "[LOG]: Couldn't create bidded directory upon registration" << endl;
+            removeDir(userDir);
+            throw string("[LOG]: Couldn't create bidded directory upon registration");
+            //return false;
+        }
     }
 
     userPass = "USERS/" + uid + "/" + uid + "_pass.txt";
