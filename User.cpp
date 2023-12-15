@@ -713,6 +713,8 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                     cout << "Cannot bid in an auction hosted by the user" << endl;
                 } else if (message_arguments[1] == "ERR") {
                     cout << "Error on server side" << endl;
+                } else if (message_arguments[1] == "NLG") {
+                    cout << "User not logged in" << endl;
                 } else {
                     throw string("Invalid response from server");
                 }

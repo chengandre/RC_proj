@@ -1180,7 +1180,7 @@ void handleTCPRequest(int &fd) {
                     } else if (!checkAuctionDuration(aid) || exists(endTxt)) { // checks if auction is closed or should've been closed
                         cout << "[LOG]: On bid, auction already closed" << endl;
                         response += "NOK\n";
-                    } if (!checkLogin(uid)) { // check if user if logged in
+                    } else if (!checkLogin(uid)) { // check if user if logged in
                         cout << "[LOG]: On bid, user not logged in" << endl;
                         response += "NLG\n";
                     } else if (!checkPassword(uid, pass)) { // checks if the password matches the stored one
