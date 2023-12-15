@@ -658,6 +658,8 @@ string handleUDPRequest(char request[]) {
     return response; // response to send to user
 }
 
+
+// Starts everything necessary to handle UDP request from users (sequencially)
 void startUDP() {
 
     fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
@@ -665,9 +667,10 @@ void startUDP() {
         cout << "[LOG]: UDP Error creating socket" << endl;
         exit(EXIT_FAILURE);
     }
-    cout << "[LOG]: UDP socket created" << endl;
+    if (verbose) cout << "[LOG]: UDP socket created" << endl;
 
     int on = 1;
+    // Sets socket option so that it can be reused right away
     if (setsockopt(fd_udp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
         cout << "[LOG]: TCP Error setting socket options" << endl; 
         exit(EXIT_FAILURE);
@@ -683,7 +686,7 @@ void startUDP() {
     struct timeval timeout;
     timeout.tv_sec = 5; 
     timeout.tv_usec = 0;
-    
+    // Sets sendto timeout
     if (setsockopt(fd_udp, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
         cout << "[LOG]: UDP Error setting timeout" << endl;
         int ret;
@@ -699,130 +702,138 @@ void startUDP() {
     while (true) {
         addrlen = sizeof(addr);
         response.clear();
-        memset(buffer, 0, sizeof buffer);
+        memset(buffer, 0, sizeof buffer); // clear buffer
+
         if (verbose) cout << "[LOG]: UDP waiting for requests" << endl;
+
+        // Receives a request
         n_udp = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n_udp == -1) {
+            // Something went wrong while receiving
             cout << "Error reading request from UDP socket" << endl;
             response = "ERR\n";
         } else {
+            // if ok, get user's ip and port
             int errcode;
             if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), NI_NUMERICHOST)) != 0) {
                 cout << "[LOG]: UDP Error getnameinfo: " << gai_strerror(errcode) << endl;
             }
-            response = handleUDPRequest(buffer);
+            response = handleUDPRequest(buffer); 
         }
 
         if (verbose) cout << "[LOG]: UDP sending response: " << response;
+        // Sends the response to the user
         n_udp = sendto(fd_udp, response.c_str(), response.length(), 0, (struct sockaddr*) &addr, addrlen);
         if (n_udp == -1) {
+            // Something went wrong sending the response
             cout << "Error sending response to UDP socket" << endl;
         }
     }
 }
 
-int receiveTCPsize(int fd, int size, string &response) {
-    int total_received = 0;
-    int n;
+
+// Reads from a TCP sockets 'size' bytes
+int receiveTCPsize(int fd, int size, string &request) {
+    int total_received = 0; // bytes received 
+    int n; // bytes read from socket at a time
     char tmp[128];
-    response.clear();
-    //cout << "[LOG]: " << getpid() << " Receiving TCP request by size" << endl;
-    while (total_received < size) {
-        n = read(fd, tmp, 1);
+    request.clear();
+
+    while (total_received < size) { // while bytes read is not enough keep reading
+        n = read(fd, tmp, 1); // read one byte at a time
         if (n == -1) {
             throw string("Error reading from TCP socket");
         }
-        concatenateString(response, tmp, n);
-        total_received += n;
+        concatenateString(request, tmp, n); // add the byte to the request
+        total_received += n; // update bytes received
     }
-    //cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
 
     return total_received;
 }
 
-int receiveTCPspace(int fd, int size, string &response) {
-    int n;
-    int total_received = 0;
-    int total_spaces = 0;
+// Keep reading from TCP socket untill it reads 'size' spaces
+int receiveTCPspace(int fd, int size, string &request) {
+    int total_received = 0; // bytes read
+    int total_spaces = 0; // spaces read
+    int n; // bytes read at a time
     char tmp[128];
-    response.clear();
-    //cout << "[LOG]: " << getpid() << " Receiving TCP request by spaces" << endl;
-    while (total_spaces < size) {
-        n = read(fd, tmp, 1);
+    request.clear();
+
+    while (total_spaces < size) { // while spaces read is not enough, keep reading
+        n = read(fd, tmp, 1); // read byte
         if (n == -1) {
             throw string("Error reading from TCP socket");
         }
-        concatenateString(response, tmp, n);
-        total_received += n;
+        concatenateString(request, tmp, n); // add byte to request
+        total_received += n; // update bytes read
         if (tmp[0] == ' ') {
+            // if bytes is a space, increment spaces read
             total_spaces++;
         }
     }
-    //cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
 
     return total_received;
 }
 
+// Reads from a TCP socket untill it reads a '\n'
 int receiveTCPend(int fd, string &response) {
-    int total_received = 0;
+    int total_received = 0; // bytes read (not counting the '\n')
+    int n; // bytes read at a time
     char tmp[128];
-    int n;
     response.clear();
     
-    //cout << "[LOG]: Receiving TCP until the end" << endl;
     while (true) {
-        n = read(fd, tmp, 1);
+        n = read(fd, tmp, 1); // reads a bytes
         if (n == -1) {
             throw string("Error reading from TCP socket");
         } else if (tmp[0] == '\n') {
+            // bytes is a '\n' then quit
             break;
         }
         concatenateString(response, tmp, n);
         total_received += n;
         
     }
-    //cout << "[LOG]: " << getpid() << " Received response of size " << total_received << endl;
 
     return total_received;
 }
 
+// Reads a File from TCP socket, 128 byte at a time, while storing it to the dest. file
 int receiveTCPfile(int fd, int size, string &fname, string &aid) {
-    int total_received = 0;
-    int n, to_read;
+    int total_received = 0; // bytes received
+    int n, to_read; // bytes read at a time and bytes left to read
     char tmp[128];
     string auctionDir = "AUCTIONS/" + aid;
-    string dir = auctionDir + "/ASSET/" + fname;
+    string dir = auctionDir + "/ASSET/" + fname; // path to store the file
 
-    ofstream fout(dir, ios::binary);
+    ofstream fout(dir, ios::binary); // create a new file to write
     if (!fout) {
+        // if something went wrong, then revert everything (delete auction)
         removeDir(auctionDir);
         throw string("Error creating asset file");
     }
 
-    // cout << "[LOG]: " << getpid() << " Receiving TCP file" << endl;
-    while (total_received < size) {
-        to_read = min(128, size-total_received);
+    while (total_received < size) { // while there are bytes left to receive, keep reading
+        to_read = min(128, size-total_received); // if file has less than 128 bytes left, then we should only read that many
         n = read(fd, tmp, to_read);
         if (n == -1) {
             fout.close();
             removeDir(auctionDir);
             throw string("Error receiving TCP file");
         }
-        fout.write(tmp, n);
+        fout.write(tmp, n); // store the received data to the file
         total_received += n;
     }
 
-    // cout << "[LOG]: " << getpid() << " Received file of size " << total_received << " fsize is " << size << endl;
     fout.close();
-
     return total_received;
 }
 
+// Sends a response to user through the TCP socket
 int sendTCPresponse(int fd, string &message, int size) {
-    //cout << "[LOG]: " << getpid() << " Sending TCP response" << endl;
-    int total_sent = 0;
-    int n;
-    while (total_sent < size) {
+    int total_sent = 0; // bytes sent
+    int n; // bytes sent at a time
+    while (total_sent < size) { // while message has not been sent totally
         n = write(fd, message.c_str() + total_sent, size - total_sent);
         if (n == -1) {
             cout << "TCP send error" << endl;
@@ -831,24 +842,26 @@ int sendTCPresponse(int fd, string &message, int size) {
         total_sent += n;
     }
 
-    //cout << "[LOG]: " << getpid() << " Sent TCP response" << endl;
     return total_sent;
 }
 
+// Checks if User is logged in (true), else false
 bool checkLogin (string &uid) {
-    // true if user is logged in, else false
+
     struct stat buffer;
     string tmp = "USERS/" + uid + "/" + uid + "_login.txt";
     return (stat (tmp.c_str(), &buffer) == 0); 
 }
 
+// Creates all the necessary directories to open a new auction
 void createAuctionDir(string &aid) {
-    // creates all the directories necessary for an auction
+    // Dirs to be created
     string AID_dirname = "AUCTIONS/" + aid;
     string BIDS_dirname = "AUCTIONS/" + aid + "/BIDS";
     string ASSET_dirname = "AUCTIONS/" + aid + "/ASSET";
     int ret;
 
+    // Creation of Dirs, if something goes wrong reverts back
     ret = mkdir(AID_dirname.c_str(), 0700);
     if (ret == -1) {
         throw string("Error creating directory AID");
@@ -867,35 +880,41 @@ void createAuctionDir(string &aid) {
     }
 }
 
+// Deletes the directory of an auction
 void deleteAuctionDir(string &aid) {
-    string AID_dirname = "AUCTIONS/" + aid;
+    string AID_dirname = "AUCTIONS/" + aid; // target
     removeDir(AID_dirname);
 }
 
+// If MAX_AUCTIONS has not been reached, returns the next available AID, else return empty string
 string getNextAID() {
     // returns the next available AID
+
     string aid;
     sem_wait(&sharedAID->sem); // prevents other processes from getting an aid
 
-    if (sharedAID->AID > 999) {
+    if (sharedAID->AID > MAX_AUCTIONS) {
+        // maximum number of auctions reached
         aid = string();
     } else {
+        // there is space for a new AID
+
         stringstream ss;
-        ss << setw(3) << setfill('0') << sharedAID->AID;
+        ss << setw(3) << setfill('0') << sharedAID->AID; // get the new AID, fill with 0s if necessary
         aid = ss.str();
         string auctionDir = "AUCTIONS/" + aid;
-        sharedAID->AID++;
-        while (exists(auctionDir)) { 
-            // loops until it find an available aid
+        sharedAID->AID++; // next "available" AID
+        while (exists(auctionDir)) { // loops until it find an available aid
+            // There's an auction with the given AID
             ss.str(string()); // clear ss
-            ss << setw(3) << setfill('0') << sharedAID->AID;
+            ss << setw(3) << setfill('0') << sharedAID->AID; // get a new AID
             aid = ss.str();
             auctionDir = "AUCTIONS/" + aid;
             sharedAID->AID++;
         }
     }
     
-    sem_post(&sharedAID->sem);
+    sem_post(&sharedAID->sem); // allows others to get an AID
     return aid;
 }
 

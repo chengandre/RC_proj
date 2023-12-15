@@ -23,6 +23,7 @@
 
 #define DEFAULT_PORT "58030" //number of group:30
 #define BUFFERSIZE 65535
+#define MAX_AUCTIONS 999 // maximum number of auctions
 
 using namespace std;
 
