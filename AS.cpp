@@ -310,7 +310,7 @@ string handleUDPRequest(char request[]) {
                     string loginTxt;
                     loginTxt = loginDir + "/" + uid + "_login.txt";
                     if (exists(loginTxt)) {
-                        cout << "[LOG]: User already logged in" << endl;
+                        cout << "[LOG]: User " << uid << " already logged in" << endl;
                         response += "OK\n";
                     } else if (createLogin(uid, pass)) {
                         response += "OK\n";
