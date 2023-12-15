@@ -51,4 +51,6 @@ string getSubString(string const&target, size_t start, size_t size);
 
 void concatenateString(string &target, char item[], int size);
 
+void checkUDPSyntax(string request);
+
 #endif

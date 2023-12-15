@@ -299,9 +299,10 @@ string handleUDPRequest(char request[]) {
     request_type = parseCommand(request_arguments.at(0));
 
     try {
+        checkUDPSyntax(string(request));
         switch(request_type) {
             case LOGIN: {
-                cout << "[LOG]: UDP Got LOGIN request from " << host << ":" << service << endl;
+                if (verbose) cout << "[LOG]: UDP Got LOGIN request from " << host << ":" << service << endl;
                 response = "RLI ";
 
                 string uid = request_arguments.at(1);
@@ -332,7 +333,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case LOGOUT: {
-                cout << "[LOG]: UDP Got LOGOUT request from " << host << ":" << service << endl;
+                if (verbose) cout << "[LOG]: UDP Got LOGOUT request from " << host << ":" << service << endl;
 
                 response = "RLO ";
                 string uid = request_arguments.at(1);
@@ -361,7 +362,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case UNREGISTER: {
-                cout << "[LOG]: UDP Got UNREGISTER request from " << host << ":" << service << endl;
+                if (verbose) cout << "[LOG]: UDP Got UNREGISTER request from " << host << ":" << service << endl;
 
                 response = "RUR ";
                 string uid = request_arguments.at(1);
@@ -389,7 +390,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case MYAUCTIONS: {
-                cout << "[LOG]: UDP Got MYAUCTIONS request from " << host << ":" << service << endl;
+                if (verbose) cout << "[LOG]: UDP Got MYAUCTIONS request from " << host << ":" << service << endl;
 
                 response = "RMA ";
                 string uid = request_arguments.at(1);
@@ -429,7 +430,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case MYBIDS: {
-                cout << "[LOG]: UDP Got MYBIDS request from " << host << ":" << service << endl;
+                if (verbose) cout << "[LOG]: UDP Got MYBIDS request from " << host << ":" << service << endl;
 
                 response = "RMB ";
                 string uid = request_arguments.at(1);
@@ -467,7 +468,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case LIST:{
-                cout << "[LOG]: UDP Got LIST request from " << host << ":" << service << endl;
+                if (verbose) cout << "[LOG]: UDP Got LIST request from " << host << ":" << service << endl;
 
                 response = "RLS ";
                 string auctionsDir = "AUCTIONS";
@@ -497,7 +498,7 @@ string handleUDPRequest(char request[]) {
                 break;
             }
             case SHOW_RECORD: {
-                cout << "[LOG]: UDP Got SHOW_RECORD request from " << host << ":" << service << endl;
+                if (verbose) cout << "[LOG]: UDP Got SHOW_RECORD request from " << host << ":" << service << endl;
                 response = "RRC ";
                 string aid = request_arguments.at(1);
                 checkAID(aid);
@@ -574,12 +575,6 @@ string handleUDPRequest(char request[]) {
                             response += date + " ";
                             response += time + " ";
                             response += seconds;
-
-                            // if (i == 0) {
-                            //     response += "\n";
-                            // } else {
-                            //     response += " ";
-                            // }
                         }
                     }
 
@@ -659,14 +654,14 @@ void startUDP() {
         exit(EXIT_FAILURE);
     }
 
-    cout << "[LOG]: UDP starting to read from socket" << endl;
+    if (verbose) cout << "[LOG]: UDP starting to read from socket" << endl;
     string response;
     char buffer[BUFFERSIZE];
     while (true) {
         addrlen = sizeof(addr);
         response.clear();
-        
-        cout << "[LOG]: UDP waiting for requests" << endl;
+        memset(buffer, 0, sizeof buffer);
+        if (verbose) cout << "[LOG]: UDP waiting for requests" << endl;
         n_udp = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
         if (n_udp == -1) {
             cout << "Error reading request from UDP socket" << endl;
@@ -675,11 +670,11 @@ void startUDP() {
             int errcode;
             if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), NI_NUMERICHOST)) != 0) {
                 cout << "[LOG]: UDP Error getnameinfo: " << gai_strerror(errcode) << endl;
-            } 
+            }
             response = handleUDPRequest(buffer);
         }
 
-        cout << "[LOG]: UDP sending response: " << response;
+        if (verbose) cout << "[LOG]: UDP sending response: " << response;
         n_udp = sendto(fd_udp, response.c_str(), response.length(), 0, (struct sockaddr*) &addr, addrlen);
         if (n_udp == -1) {
             cout << "Error sending response to UDP socket" << endl;
@@ -840,25 +835,28 @@ void deleteAuctionDir(string &aid) {
 
 string getNextAID() {
     // returns the next available AID
-
+    string aid;
     sem_wait(&sharedAID->sem); // prevents other processes from getting an aid
 
-    stringstream ss;
-    ss << setw(3) << setfill('0') << sharedAID->AID;
-    string aid = ss.str();
-    string auctionDir = "AUCTIONS/" + aid;
-    sharedAID->AID++;
-    while (exists(auctionDir)) { 
-        // loops until it find an available aid
-        ss.str(string()); // clear ss
+    if (sharedAID->AID > 999) {
+        aid = string();
+    } else {
+        stringstream ss;
         ss << setw(3) << setfill('0') << sharedAID->AID;
         aid = ss.str();
-        auctionDir = "AUCTIONS/" + aid;
+        string auctionDir = "AUCTIONS/" + aid;
         sharedAID->AID++;
+        while (exists(auctionDir)) { 
+            // loops until it find an available aid
+            ss.str(string()); // clear ss
+            ss << setw(3) << setfill('0') << sharedAID->AID;
+            aid = ss.str();
+            auctionDir = "AUCTIONS/" + aid;
+            sharedAID->AID++;
+        }
     }
     
     sem_post(&sharedAID->sem);
-
     return aid;
 }
 
@@ -905,7 +903,7 @@ bool checkOwner(string &uid, string &aid) {
 void handleTCPRequest(int &fd) {
     // handles TCP request from user (receives, handles and answers)
 
-    string request, tmp, response;
+    string request, tmp, response, to_print;
     vector<string> request_arguments;
     int request_type;
     try {
@@ -917,7 +915,7 @@ void handleTCPRequest(int &fd) {
         } else {
             switch (request_type) {
                 case OPEN: {
-                    cout << "[LOG]: " << getpid() << " Got OPEN request from " << host << ":" << service << endl;
+                    if (verbose) cout << "[LOG]: " << getpid() << " Got OPEN request from " << host << ":" << service << endl;
 
                     response = "ROA ";
 
@@ -945,6 +943,12 @@ void handleTCPRequest(int &fd) {
                     } else {
                         string aid = getNextAID();
 
+                        if (aid.size() == 0) {
+                            response += "NOK\n"; // Max num auction reached
+                            receiveTCPsize(fd, fsize+1, tmp);
+                            break;
+                        }
+
                         createAuctionDir(aid);
                         receiveTCPfile(fd, fsize, request_arguments.at(5), aid);
                         receiveTCPsize(fd, 1, tmp);
@@ -961,13 +965,15 @@ void handleTCPRequest(int &fd) {
                             throw string("Couldn't create hosted file in User dir");
                         }
                         fout.close();
-                        cout << "[LOG]: " << getpid() << " Created auction with aid " << aid << endl;
+                        
+                        to_print = "[LOG]: " + to_string(getpid()) + " Created auction with aid " + aid + '\n';
+                        cout << to_print;
                         response += "OK " + aid + "\n";
                     }
                     break;
                 }
                 case CLOSE: {
-                    cout << "[LOG]: " << getpid() << " Got CLOSE request from " << host << ":" << service << endl;
+                    if (verbose) cout << "[LOG]: " << getpid() << " Got CLOSE request from " << host << ":" << service << endl;
 
                     response = "RCL ";
                     int n = receiveTCPsize(fd, 20, request);
@@ -1021,12 +1027,14 @@ void handleTCPRequest(int &fd) {
                         fout << content;
                         fout.close();
 
+                        to_print = "[LOG]: " + to_string(getpid()) + " Closed auction " + aid + '\n';
+                        cout << to_print;
                         response += "OK\n";
                     }
                     break;
                 }
                 case SHOW_ASSET: {
-                    cout << "[LOG]: " << getpid() << " Got SHOW_ASSET request from " << host << ":" << service << endl;
+                    if (verbose) cout << "[LOG]: " << getpid() << " Got SHOW_ASSET request from " << host << ":" << service << endl;
 
                     response = "RSA ";
                     int n = receiveTCPsize(fd, 4, request);
@@ -1059,10 +1067,12 @@ void handleTCPRequest(int &fd) {
                     response += fname + " ";
                     response += fsize_str + " ";
                     response += openJPG(assetPath) + "\n";
+                    to_print = "[LOG]: " + to_string(getpid()) + " prepared asset to send\n";
+                    cout << to_print;
                     break;
                 }
                 case BID:{
-                    cout << "[LOG]: " << getpid() << " Got BID request from " << host << ":" << service << endl;
+                    if (verbose) cout << "[LOG]: " << getpid() << " Got BID request from " << host << ":" << service << endl;
 
                     response = "RBD ";
                     int n = receiveTCPspace(fd, 3, request);
@@ -1171,6 +1181,8 @@ void handleTCPRequest(int &fd) {
                         }
                         fout.close();
                         
+                        to_print = "[LOG]: " + to_string(getpid()) + " accepted and created bid from " + uid + " on auction " + aid + "\n";
+                        cout << to_print;
                         response += "ACC\n";
                     }
                     break;
@@ -1230,7 +1242,6 @@ void startTCP() {
     int errcode;
     while (true) {
         addrlen = sizeof(addr);
-        cout << "[LOG]: Parent " << getpid() << " starting to accept requests" << endl;
 
         do {
             tcp_child = accept(fd_tcp, (struct sockaddr*) &addr, &addrlen);
@@ -1277,7 +1288,7 @@ void startTCP() {
             if (shmdt(sharedAID) == -1) {
                 cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
             }
-            cout << "[LOG]: " << getpid() << " Terminating after handling request" << endl; 
+            if (verbose) cout << "[LOG]: " << getpid() << " Terminating after handling request" << endl; 
             
             do {
                 ret = close(tcp_child);
@@ -1353,7 +1364,7 @@ int main(int argc, char *argv[]) {
             break;
     }
 
-    cout << port << '\n';
+    if (verbose) cout << "[LOG]: Port: " << port << '\n';
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;

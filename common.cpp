@@ -170,3 +170,30 @@ void concatenateString(string &target, char item[], int size) {
         target.push_back(item[i]);
     }
 }
+
+void checkUDPSyntax(string request) {
+    bool end_found = false;
+    bool space_found = false;
+    size_t i = 0;
+    while (i < request.size()) {
+        if (request.at(i) == '\n' && !end_found) {
+            end_found = true;
+        } else if (request.at(i) == '\n') {
+            throw string("Invalid UDP message");
+        }
+
+        if (request.at(i) == ' ' && !space_found) {
+            space_found = true;
+        } else if (request.at(i) == ' ' && space_found) {
+            throw string("Invalid UDP message");
+        } else if (request.at(i) != ' ' && space_found) {
+            space_found = false;
+        }
+
+        i++;
+    }
+
+    if (request.back() != '\n') {
+        throw string("Invalid UDP message");
+    }
+}

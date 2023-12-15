@@ -42,22 +42,6 @@ int parseCommand(string &command) {
     }
 }
 
-// int indexSpace(int n_spaces, string &target){
-//     // finds the index of the nth space
-//     int count = 0;
-//     int i = 0;
-//     while (count < n_spaces && i < target.size()) {
-//         if (target[i] == ' ') {
-//             count++;
-//         }
-//         i++;
-//     }
-//     if (i == target.size()) {
-//         return -1;
-//     }
-//     return i-1;
-// }
-
 void saveJPG(string &data, string &fname) {
     std::ofstream fout(fname, std::ios::binary);
     fout.write(data.c_str(), data.size());
@@ -90,6 +74,8 @@ void sendReceiveUDPRequest(string &message, int size, string &response) {
         concatenateString(response, buffer, n);
         //total_received += n;
     }
+
+    checkUDPSyntax(response);
     //cout << "[LOG]: Received UDP response of size " <<  response.size() << endl;
 
     // return total_received;
@@ -447,7 +433,7 @@ int sendTCPmessage(int const &fd, string &message, int size) {
         to_send = min(128, size-total_sent);
         n = write(fd, message.c_str() + total_sent, to_send);
         if (n == -1) {
-            throw string("Error while reading from TCP socket");
+            throw string("Error while sending TCP message");
         }
         total_sent += n;    
     }
