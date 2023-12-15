@@ -919,9 +919,8 @@ string getNextAID() {
 }
 
 
-
+// Creates START_AID.txt file with info about the auction
 void createStartAuctionText(vector<string> &arguments, string &aid) {
-    // creates start_aid.txt
     string name, tmp;
 
     tmp = arguments.at(0) + " "; // UID
@@ -929,46 +928,48 @@ void createStartAuctionText(vector<string> &arguments, string &aid) {
     tmp += arguments.at(5) + " "; // fname
     tmp += arguments.at(3) + " "; // start_value
     tmp += arguments.at(4) + " "; // time active
-    tmp += getDateAndTime();
+    tmp += getDateAndTime(); // date, hour and seconds
 
     name = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
-    ofstream fout(name, ios::out);
+    ofstream fout(name, ios::out); // create file to write
     if (!fout) {
+        // if something went wrong, revert back (deletes the whole dir)
         deleteAuctionDir(aid);
         throw string("Error creating start auction text");
     }
 
-    fout.write(tmp.c_str(), tmp.size());
+    fout.write(tmp.c_str(), tmp.size()); // writes the content into the file
     fout.close();
 }
 
+// Checks if given user UID is auction AID's owner
 bool checkOwner(string &uid, string &aid) {
-    // checks if user is auctions' owner
     string auctionDir = "AUCTIONS/" + aid;
-    string startTxt = auctionDir + "/START_" + aid + ".txt";
+    string startTxt = auctionDir + "/START_" + aid + ".txt"; // file with auction info
     char tmp[6];
 
-    ifstream fin(startTxt);
+    ifstream fin(startTxt); // opens file to read
     if (!fin) {
         throw string("[LOG]: Error opening file to read");
     }
-    fin.read(tmp, 6);
+    fin.read(tmp, 6); // read the first 6 bytes, which corresponds to the owners UID
     fin.close();
 
-    return strcmp(uid.c_str(), tmp);
+    return strcmp(uid.c_str(), tmp); // matches them
 }
 
+// Reads a request from a TCP socket, handles it and sends a response to User
 void handleTCPRequest(int &fd) {
-    // handles TCP request from user (receives, handles and answers)
 
     string request, tmp, response, to_print;
     vector<string> request_arguments;
     int request_type;
+
     try {
-        receiveTCPsize(fd, 3, tmp);
-        request_type = parseCommand(tmp);
-        receiveTCPsize(fd, 1, tmp); // clear space
-        if (tmp.at(0) != ' ') {
+        receiveTCPsize(fd, 3, tmp); // Reads 3 first bytes corresponding to the request type
+        request_type = parseCommand(tmp); // Convert the string to int request_type
+        receiveTCPsize(fd, 1, tmp); // Clear the next byte
+        if (tmp.at(0) != ' ') { // Checks if the byte is a space (should be)
             throw string("Syntax Error");
         } else {
             switch (request_type) {
