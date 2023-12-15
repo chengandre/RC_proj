@@ -5,20 +5,42 @@
 // maybe change parseInput to splitString cause it is used in other cases
 // bids always have 6 chars? (not necessary?)
 // send file by parts
+// exit to terminate
 
 using namespace std;
 
-int fd_tcp, fd_udp;
+int fd_tcp, fd_udp, tcp_child;
 socklen_t addrlen;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
-string port;
+string port, current_time_str;
 bool verbose = false;
 time_t fulltime;
 struct tm *current_time;
-string current_time_str;
-SharedAID *sharedAID;
-char host[NI_MAXHOST], service[NI_MAXSERV];
+SharedAID *sharedAID; // Shared struct between all processes (to synchronize AIDs)
+char host[NI_MAXHOST], service[NI_MAXSERV]; // Users IP and Port
+
+// Closes all opened file descriptors and exits
+void terminateServer(int status) {
+    int ret;
+    if (fd_tcp != -1) {
+        do {
+            ret = close(fd_tcp);
+        } while (ret == -1 && errno == EINTR);
+    }
+    if (fd_udp != -1) {
+        do {
+            ret = close(fd_udp);
+        } while (ret == -1 && errno == EINTR);
+    }
+    if (tcp_child != -1) {
+        do {
+            ret = close(tcp_child);
+        } while (ret == -1 && errno == EINTR);
+    }
+    
+    exit(status);
+}
 
 // Checks if a file/directory exists
 bool exists(string& name) {
@@ -665,7 +687,7 @@ void startUDP() {
     fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd_udp == -1) {
         cout << "[LOG]: UDP Error creating socket" << endl;
-        exit(EXIT_FAILURE);
+        terminateServer(EXIT_FAILURE);
     }
     if (verbose) cout << "[LOG]: UDP socket created" << endl;
 
@@ -673,15 +695,15 @@ void startUDP() {
     // Sets socket option so that it can be reused right away
     if (setsockopt(fd_udp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
         cout << "[LOG]: TCP Error setting socket options" << endl; 
-        exit(EXIT_FAILURE);
+        terminateServer(EXIT_FAILURE);
     }
 
     int n_udp = ::bind(fd_udp, res->ai_addr, res->ai_addrlen);
     if (n_udp == -1) {
         cout << "[LOG]: UDP Bind error: " << strerror(errno);
-        exit(EXIT_FAILURE);
+        terminateServer(EXIT_FAILURE);
     }
-    cout << "[LOG]: UDP Bind successfully" << endl;
+    if (verbose) cout << "[LOG]: UDP Bind successfully" << endl;
 
     struct timeval timeout;
     timeout.tv_sec = 5; 
@@ -689,11 +711,7 @@ void startUDP() {
     // Sets sendto timeout
     if (setsockopt(fd_udp, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
         cout << "[LOG]: UDP Error setting timeout" << endl;
-        int ret;
-        do {
-            ret = close(fd_udp);
-        } while (ret == -1 && errno == EINTR);
-        exit(EXIT_FAILURE);
+        terminateServer(EXIT_FAILURE);
     }
 
     if (verbose) cout << "[LOG]: UDP starting to read from socket" << endl;
@@ -1286,112 +1304,111 @@ void handleTCPRequest(int &fd) {
         response += "ERR\n";
     }
 
-    // cout << "[LOG]: " << getpid() << " Sending response " << response;
-    sendTCPresponse(fd, response, response.size());
-
-    close(fd);
+    sendTCPresponse(fd, response, response.size()); // respond to user
 }
 
 void startTCP() {
 
-    fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
+    // Creates the TCP socket
+    fd_tcp = socket(AF_INET, SOCK_STREAM, 0); 
     if (fd_tcp == -1) {
         cout << "[LOG]: TCP Error creating socket" << endl;
-        exit(EXIT_FAILURE);
+        terminateServer(EXIT_FAILURE);
     }
-    cout << "[LOG]: TCP socket created" << endl;
+    if (verbose) cout << "[LOG]: TCP socket created" << endl;
 
     int on = 1;
+    // Set option so that the socket can be reused right away
     if (setsockopt(fd_tcp, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
         cout << "[LOG]: TCP Error setting socket options" << endl; 
-        exit(EXIT_FAILURE);
+        terminateServer(EXIT_FAILURE);
     }
 
     int n_tcp = ::bind(fd_tcp, res->ai_addr, res->ai_addrlen);
     if (n_tcp == -1) {
         cout << "[LOG]: TCP Bind error" << endl;
-        exit(EXIT_FAILURE);
+        terminateServer(EXIT_FAILURE);
     }
-    cout << "[LOG]: TCP Bind successfully" << endl;
+    if (verbose) cout << "[LOG]: TCP Bind successfully" << endl;
 
     if (listen(fd_tcp, SOMAXCONN) == -1) {
         cout << "[LOG]: TCP listen error" << endl;
-        exit(EXIT_FAILURE);
+        terminateServer(EXIT_FAILURE);
     }
 
     int ret;
-    int tcp_child;
     int errcode;
     while (true) {
         addrlen = sizeof(addr);
 
-        do {
+        do { // waits for a TCP connection
             tcp_child = accept(fd_tcp, (struct sockaddr*) &addr, &addrlen);
         } while(tcp_child == -1 && errno == EINTR);
 
         if(tcp_child == -1) {
             cout << "[LOG]: TCP accept error" << endl;
-            exit(EXIT_FAILURE);
+            terminateServer(EXIT_FAILURE);
         }
         
         struct timeval timeout;
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
+        // sets timeout option to the socket
         if (setsockopt(tcp_child, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
             cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
-            do {
-                ret = close(tcp_child);
-            } while (ret == -1 && errno == EINTR);
-            exit(EXIT_FAILURE);
+            terminateServer(EXIT_FAILURE);
         }
 
         if (setsockopt(tcp_child, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
             cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
-            do {
-                ret = close(tcp_child);
-            } while (ret == -1 && errno == EINTR);
-            exit(EXIT_FAILURE);
+            terminateServer(EXIT_FAILURE);
         }
         
         pid_t pid = fork();
         if (pid == -1) {
             cout << "TCP fork error" << endl;
-            exit(EXIT_FAILURE);
-        } else if (pid == 0) {
-            close(fd_tcp);
-            int on = 1;
+            terminateServer(EXIT_FAILURE);
+        } else if (pid == 0) { // child process
+            close(fd_tcp); // closed the unused fd
+            fd_tcp = -1;
+
+            int on = 1; // option to be reused right away
             setsockopt(tcp_child, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
+            // Gets the user's IP and port
             if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), NI_NUMERICHOST)) != 0) {
                 cout << "[LOG]: TCP Error getnameinfo: " << gai_strerror(errcode) << endl;
             }
             
-            handleTCPRequest(tcp_child);
-            if (shmdt(sharedAID) == -1) {
+            handleTCPRequest(tcp_child); // handles everything from the user
+            if (shmdt(sharedAID) == -1) { // detaches from the shared memory, since job is done
                 cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
             }
+
             if (verbose) cout << "[LOG]: " << getpid() << " Terminating after handling request" << endl; 
             
-            do {
+            do { // close its own TCP socket
                 ret = close(tcp_child);
             } while (ret == -1 && errno == EINTR);
-            exit(EXIT_SUCCESS);
+            tcp_child = -1;
+
+            terminateServer(EXIT_SUCCESS); // terminates
         }
     
-        do {
+        do { // close child_fd since it is not used by the parent
             ret = close(tcp_child);
         } while (ret == -1 && errno == EINTR);
+        tcp_child = -1;
 
         if (ret == -1) {
-            exit(EXIT_FAILURE);
+            terminateServer(EXIT_FAILURE);
         }
     }
 }
 
-void sigintHandler(int signum) {
-
-    sem_destroy(&sharedAID->sem);
-    shmdt(sharedAID);
+void sigintHandlerWithSharedMemory(int signum) {
+    sem_destroy(&sharedAID->sem); // Destroys the semaphore
+    shmdt(sharedAID); // Destroys the shared memory
 
     string userDir = "USERS";
     for (const auto& entry : filesystem::directory_iterator(userDir)) {
@@ -1407,17 +1424,38 @@ void sigintHandler(int signum) {
         }
     } 
 
-    close(fd_tcp);
-    close(fd_udp);
-        
+    int ret;
+    // closed both sockets
+    if (fd_tcp != -1) {
+        do {
+            ret = close(fd_tcp);
+        } while (ret == -1 && errno == EINTR);
+    }
+    if (fd_udp != -1) {
+        do {
+            ret = close(fd_udp);
+        } while (ret == -1 && errno == EINTR);
+    }
+    if (tcp_child != -1) {
+        do {
+            ret = close(tcp_child);
+        } while (ret == -1 && errno == EINTR);
+    }
     exit(EXIT_SUCCESS);
 }
 
+void sigintHandler(int signum) {
+    terminateServer(EXIT_SUCCESS);
+}
+
+
+
 int main(int argc, char *argv[]) {
 
-    signal(SIGINT, sigintHandler);
-    signal(SIGCHLD, SIG_IGN);
+    signal(SIGINT, sigintHandlerWithSharedMemory); // ctrl-c handler
+    signal(SIGCHLD, SIG_IGN); // ignore child's death
 
+    // ignore signal from writing to socket
     struct sigaction act;
     memset(&act, 0, sizeof(act));
     act.sa_handler = SIG_IGN;
@@ -1459,23 +1497,29 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    // Creation of the shared memory
     key_t key = ftok("SharedData", 0);
     int shmid = shmget(key, sizeof(SharedAID), 0666 | IPC_CREAT);
     sharedAID = (SharedAID*) shmat(shmid, (void*)0, 0);
 
+    // Initiates the shared variable
     sharedAID->AID = 1;
     sem_init(&sharedAID->sem, 1, 1);
 
+    // Initialize them as -1 so that they dont get closed twice
+    fd_tcp = -1;
+    fd_udp = -1;
+    tcp_child = -1;
+
+    // creates one more process (one will handle UDP request and the other TCP requests)
     pid_t pid = fork();
     if (pid == -1) {
         cout << "Fork error" << endl;
-        exit(EXIT_FAILURE);
+        terminateServer(EXIT_FAILURE);
     } else if (pid > 0) {
-        startUDP();
+        startUDP(); // prepares to handle UDP requests
     } else {
-        signal(SIGINT, SIG_DFL);
-        startTCP();
+        signal(SIGINT, sigintHandler); // remove? so that childs also close
+        startTCP(); // prepares to handle TCP requests
     }
-    
-    return 0;
 }
