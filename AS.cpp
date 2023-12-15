@@ -19,16 +19,14 @@ string current_time_str;
 SharedAID *sharedAID;
 char host[NI_MAXHOST], service[NI_MAXSERV];
 
-
+// Checks if a file/directory exists
 bool exists(string& name) {
-    // check if dir/file exists
     struct stat buffer;   
     return (stat(name.c_str(), &buffer) == 0); 
 }
 
+// Removes a single file, throwing an error if unsuccessful
 void removeFile(string &path) {
-    // removes a single file
-    // throws error to stop request handling
     error_code ec;
     int ret = filesystem::remove(path, ec);
 
@@ -43,6 +41,7 @@ void removeFile(string &path) {
     }
 }
 
+// Removes a directory and all the files inside, throws an error if unsuccessful
 void removeDir(string &path) {
     error_code ec;
     
@@ -58,6 +57,7 @@ void removeDir(string &path) {
     }
 }
 
+// Returns the request_code given string request
 int parseCommand(string &command) {
     if (command == "LIN") {
         return LOGIN;
@@ -86,7 +86,9 @@ int parseCommand(string &command) {
     }
 }
 
+// Check if given password matches the stored one from a user
 bool checkPassword(string &uid, string &pw) {
+    // path of file with user password
     string fname = "USERS/" + uid + "/" + uid + "_pass.txt";
 
     ifstream pw_file(fname);
@@ -95,20 +97,22 @@ bool checkPassword(string &uid, string &pw) {
     }
     
     ostringstream oss;
-    oss << pw_file.rdbuf();
+    oss << pw_file.rdbuf(); // reads the stored password
     pw_file.close();
-    return oss.str() == pw;
+    return oss.str() == pw; // tests it agaisnt the given one
 }
 
+// Creates a login file if the password is correct, else returns false
 bool createLogin(string &uid, string &pass) {
-    // true if pass is correct, else false
     string loginName;
 
+    // checks the password
     if (!checkPassword(uid, pass)) {
         cout << "[LOG]: Incorrect password on login" << endl;
         return false;
     }
 
+    // Login file to be created
     loginName = "USERS/" + uid + "/" + uid + "_login.txt";
     ofstream fout(loginName, ios::out);
     if (!fout) {
@@ -120,15 +124,18 @@ bool createLogin(string &uid, string &pass) {
     return true;
 }
 
+// Removes the login file of a user, verifying the given password
 bool removeLogin(string &uid, string &pass) {
-    // true if logged out, false is pass is wrong
     string loginName;
 
+    // checks the password
     if (!checkPassword(uid, pass)) {
         cout << "[LOG]: Incorrect password" << endl;
+        // false if wrong password
         return false;
     }
 
+    // file path of the login file
     loginName = "USERS/" + uid + "/" + uid + "_login.txt";
     removeFile(loginName);
     
@@ -136,63 +143,61 @@ bool removeLogin(string &uid, string &pass) {
     return true;
 }
 
+// Creates the Dirs and Login/Pass files for a user
 void Register(string &uid, string &pass) {
-    // it just tries to register, if an IO error occurs throws error
     string userDir, userPass, hostedDir, biddedDir;
     int ret;
 
     userDir = "USERS/" + uid;
     if (!exists(userDir)) {
+        // if the user has not been registered before
+        // create all the necessary directories
+
         ret = mkdir(userDir.c_str(), 0700);
         if (ret == -1) {
-            // no_error = false;
-            // cout << "[LOG]: Couldn't create user directory" << endl;
             throw string("[LOG]: Couldn't create user directory");
-            // return false;
         }
 
+        // Hosted Dir
         hostedDir = userDir + "/HOSTED";
         ret = mkdir(hostedDir.c_str(), 0700);
         if (ret == -1) {
-            // cout << "[LOG]: Couldn't create hosted directory upon registration" << endl;
             removeDir(userDir);
             throw string("[LOG]: Couldn't create hosted directory upon registration");
-            // return false;
         }
 
+        // Bidded Dir
         biddedDir = userDir + "/BIDDED";
         ret = mkdir(biddedDir.c_str(), 0700);
         if (ret == -1) {
-            //cout << "[LOG]: Couldn't create bidded directory upon registration" << endl;
             removeDir(userDir);
             throw string("[LOG]: Couldn't create bidded directory upon registration");
-            //return false;
         }
     }
 
+    // path of the password file 
     userPass = "USERS/" + uid + "/" + uid + "_pass.txt";
-    ofstream fout(userPass, ios::out);
-    if (!fout) {
-        // cout << "[LOG]: Couldn't create user password file" << endl;
+    ofstream fout(userPass, ios::out); // creates the file
+    if (!fout) { 
         removeDir(userDir);
         throw string("[LOG]: Couldn't create bidded directory upon registration");
-        //return false;
     }
-    fout << pass;
+    fout << pass; // writes the password into the file
     cout << "[LOG]: User " + uid + " registered with password " << pass << endl;
     fout.close();
 }
 
+// Checks if an auction is closed
 bool auctionEnded(string const &aid) {
-    // checks if auction has already closed
     string endedTxt = "AUCTIONS/" + aid + "/END_" + aid + ".txt";
     return exists(endedTxt);
 }
 
+// Creates the end file for an auction
 void endAuction(string const &aid, int const &itime) {
-    // ends an auction, creating end_aid.txt
+    // path of the End file
     string endTxt = "AUCTIONS/" + aid + "/END_" + aid + ".txt";
-    ofstream fout(endTxt);
+    ofstream fout(endTxt); // creates the file
     if (!fout) {
         throw string("[LOG]: Couldn't create END AUCTION text file");
     }
@@ -204,15 +209,14 @@ void endAuction(string const &aid, int const &itime) {
             end_time->tm_year + 1900, end_time->tm_mon + 1,end_time->tm_mday, 
             end_time->tm_hour , end_time->tm_min , end_time->tm_sec);
     
-    string content(time_str);
-    content += " " + to_string(itime);
-    cout << "[LOG]: Auction should've ended, content is " << content << endl;
-    fout << content;
+    string content(time_str); // Date and Hour
+    content += " " + to_string(itime); // Duration
+    fout << content; // Writes the content to the file
     fout.close();
 }
 
+// Returns the time in seconds since the beginning of 1970
 string getTime() {
-    // Get time in seconds since 1970
     time(&fulltime);
     stringstream ss;
     ss << fulltime;
@@ -220,8 +224,8 @@ string getTime() {
     return ss.str();
 }
 
+// Returns the current date, time and seconds since 1970
 string getDateAndTime() {
-    // Get date,hour and time in seconds
     char time_str[30];
 
     time(&fulltime);
@@ -236,6 +240,7 @@ string getDateAndTime() {
     return string(time_str) + " " +  ss.str();
 }
 
+// Returns the current date, time and seconds since a given start
 string getDateAndDuration(int &start) {
 
     char time_str[30];
@@ -246,14 +251,14 @@ string getDateAndDuration(int &start) {
             current_time->tm_year + 1900, current_time->tm_mon + 1,current_time->tm_mday, 
             current_time->tm_hour , current_time->tm_min , current_time->tm_sec);
 
-    int duration = fulltime-start;
+    int duration = fulltime-start; // seconds since start
 
     return string(time_str) + " " +  to_string(duration);
 }
 
+// Checks if auction duration is ok (true), if not ends it (false)
 bool checkAuctionDuration(string const &aid) {
-    // true if auction duration is ok
-    // false if should be closed and goes calls endAuction
+    // path of start file of the auction
     string startTxt = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
     ifstream fin(startTxt);
     if (!fin) {
@@ -261,34 +266,35 @@ bool checkAuctionDuration(string const &aid) {
     }
     string content;
     vector<string> content_arguments;
-    getline(fin, content);
+    getline(fin, content); // reads file's content
     fin.close();
 
-    parseInput(content, content_arguments);
+    parseInput(content, content_arguments); // Splits the content by spaces
 
     string duration = content_arguments.at(4);
     string start_fulltime = content_arguments.back();
     string current_fulltime = getTime();
 
-    int iduration = stoi(duration);
-    int istart = stoi(start_fulltime);
-    int icurrent = stoi(current_fulltime);
+    int iduration = stoi(duration); // Max duration of the auction
+    int istart = stoi(start_fulltime); // Start time
+    int icurrent = stoi(current_fulltime); // Current time
 
     if (icurrent > istart + iduration) {
-        endAuction(aid, iduration);
+        // Past duration and auction has not been closed yet
+        endAuction(aid, iduration); // ends the auction
         return false;
     }
     return true;
 }
 
+// Handles UDP request from User, returns the response to send
 string handleUDPRequest(char request[]) {
 
-    // handle UDP request from user, return the response to send
-    string response;
+    string response; // message to send to user
     vector<string> request_arguments;
     int request_type;
 
-    parseInput(request, request_arguments);
+    parseInput(request, request_arguments); // split request by spaces
     // verificar syntax do request (espacos, \n)
     request_type = parseCommand(request_arguments.at(0));
 
