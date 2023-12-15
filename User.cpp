@@ -1,6 +1,6 @@
-// check if read==0
 #include "User.hpp"
 #include "common.hpp"
+
 using namespace std;
 
 int fd_udp;
@@ -9,9 +9,11 @@ struct addrinfo hints, *res;
 struct sockaddr_in addr;
 string hostname, port;
 char buffer[BUFFERSIZE];
-vector<string> userInfo;
+vector<string> userInfo; // contains uid and password if loggedin
 bool loggedIn = false;
 
+
+// Returns the request_code given string request
 int parseCommand(string &command) {
     if (command == "login") {
         return LOGIN;
@@ -41,6 +43,8 @@ int parseCommand(string &command) {
         return -1;
     }
 }
+
+
 
 void sendReceiveUDPRequest(string &message, int size, string &response) {
     //int total_received = 0;

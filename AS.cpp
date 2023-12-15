@@ -1,12 +1,6 @@
 #include "AS.hpp"
 #include "common.hpp"
 
-// remove sigint handler
-// maybe change parseInput to splitString cause it is used in other cases
-// bids always have 6 chars? (not necessary?)
-// send file by parts
-// exit to terminate
-
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child;
@@ -19,6 +13,7 @@ time_t fulltime;
 struct tm *current_time;
 SharedAID *sharedAID; // Shared struct between all processes (to synchronize AIDs)
 char host[NI_MAXHOST], service[NI_MAXSERV]; // Users IP and Port
+
 
 // Closes all opened file descriptors and exits
 void terminateServer(int status) {
@@ -42,11 +37,13 @@ void terminateServer(int status) {
     exit(status);
 }
 
+
 // Checks if a file/directory exists
 bool exists(string& name) {
     struct stat buffer;   
     return (stat(name.c_str(), &buffer) == 0); 
 }
+
 
 // Removes a single file, throwing an error if unsuccessful
 void removeFile(string &path) {
@@ -64,6 +61,7 @@ void removeFile(string &path) {
     }
 }
 
+
 // Removes a directory and all the files inside, throws an error if unsuccessful
 void removeDir(string &path) {
     error_code ec;
@@ -79,6 +77,7 @@ void removeDir(string &path) {
         throw tmp;
     }
 }
+
 
 // Returns the request_code given string request
 int parseCommand(string &command) {
@@ -109,6 +108,7 @@ int parseCommand(string &command) {
     }
 }
 
+
 // Check if given password matches the stored one from a user
 bool checkPassword(string &uid, string &pw) {
     // path of file with user password
@@ -124,6 +124,7 @@ bool checkPassword(string &uid, string &pw) {
     pw_file.close();
     return oss.str() == pw; // tests it agaisnt the given one
 }
+
 
 // Creates a login file if the password is correct, else returns false
 bool createLogin(string &uid, string &pass) {
@@ -147,6 +148,7 @@ bool createLogin(string &uid, string &pass) {
     return true;
 }
 
+
 // Removes the login file of a user, verifying the given password
 bool removeLogin(string &uid, string &pass) {
     string loginName;
@@ -165,6 +167,7 @@ bool removeLogin(string &uid, string &pass) {
     cout << "[LOG]: UDP User " + uid + " logged out successfully" << endl;
     return true;
 }
+
 
 // Creates the Dirs and Login/Pass files for a user
 void Register(string &uid, string &pass) {
@@ -210,11 +213,13 @@ void Register(string &uid, string &pass) {
     fout.close();
 }
 
+
 // Checks if an auction is closed
 bool auctionEnded(string const &aid) {
     string endedTxt = "AUCTIONS/" + aid + "/END_" + aid + ".txt";
     return exists(endedTxt);
 }
+
 
 // Creates the end file for an auction
 void endAuction(string const &aid, int const &itime) {
@@ -238,6 +243,7 @@ void endAuction(string const &aid, int const &itime) {
     fout.close();
 }
 
+
 // Returns the time in seconds since the beginning of 1970
 string getTime() {
     time(&fulltime);
@@ -246,6 +252,7 @@ string getTime() {
     
     return ss.str();
 }
+
 
 // Returns the current date, time and seconds since 1970
 string getDateAndTime() {
@@ -263,6 +270,7 @@ string getDateAndTime() {
     return string(time_str) + " " +  ss.str();
 }
 
+
 // Returns the current date, time and seconds since a given start
 string getDateAndDuration(int &start) {
 
@@ -278,6 +286,7 @@ string getDateAndDuration(int &start) {
 
     return string(time_str) + " " +  to_string(duration);
 }
+
 
 // Checks if auction duration is ok (true), if not ends it (false)
 bool checkAuctionDuration(string const &aid) {
@@ -309,6 +318,7 @@ bool checkAuctionDuration(string const &aid) {
     }
     return true;
 }
+
 
 // Handles UDP request from User, returns the response to send
 string handleUDPRequest(char request[]) {
@@ -769,6 +779,7 @@ int receiveTCPsize(int fd, int size, string &request) {
     return total_received;
 }
 
+
 // Keep reading from TCP socket untill it reads 'size' spaces
 int receiveTCPspace(int fd, int size, string &request) {
     int total_received = 0; // bytes read
@@ -793,6 +804,7 @@ int receiveTCPspace(int fd, int size, string &request) {
     return total_received;
 }
 
+
 // Reads from a TCP socket untill it reads a '\n'
 int receiveTCPend(int fd, string &response) {
     int total_received = 0; // bytes read (not counting the '\n')
@@ -815,6 +827,7 @@ int receiveTCPend(int fd, string &response) {
 
     return total_received;
 }
+
 
 // Reads a File from TCP socket, 128 byte at a time, while storing it to the dest. file
 int receiveTCPfile(int fd, int size, string &fname, string &aid) {
@@ -847,6 +860,7 @@ int receiveTCPfile(int fd, int size, string &fname, string &aid) {
     return total_received;
 }
 
+
 // Sends a response to user through the TCP socket
 int sendTCPresponse(int fd, string &message, int size) {
     int total_sent = 0; // bytes sent
@@ -863,6 +877,7 @@ int sendTCPresponse(int fd, string &message, int size) {
     return total_sent;
 }
 
+
 // Checks if User is logged in (true), else false
 bool checkLogin (string &uid) {
 
@@ -870,6 +885,7 @@ bool checkLogin (string &uid) {
     string tmp = "USERS/" + uid + "/" + uid + "_login.txt";
     return (stat (tmp.c_str(), &buffer) == 0); 
 }
+
 
 // Creates all the necessary directories to open a new auction
 void createAuctionDir(string &aid) {
@@ -898,11 +914,13 @@ void createAuctionDir(string &aid) {
     }
 }
 
+
 // Deletes the directory of an auction
 void deleteAuctionDir(string &aid) {
     string AID_dirname = "AUCTIONS/" + aid; // target
     removeDir(AID_dirname);
 }
+
 
 // If MAX_AUCTIONS has not been reached, returns the next available AID, else return empty string
 string getNextAID() {
@@ -960,6 +978,7 @@ void createStartAuctionText(vector<string> &arguments, string &aid) {
     fout.close();
 }
 
+
 // Checks if given user UID is auction AID's owner
 bool checkOwner(string &uid, string &aid) {
     string auctionDir = "AUCTIONS/" + aid;
@@ -975,6 +994,7 @@ bool checkOwner(string &uid, string &aid) {
 
     return strcmp(uid.c_str(), tmp); // matches them
 }
+
 
 // Reads a request from a TCP socket, handles it and sends a response to User
 void handleTCPRequest(int &fd) {
@@ -1307,6 +1327,8 @@ void handleTCPRequest(int &fd) {
     sendTCPresponse(fd, response, response.size()); // respond to user
 }
 
+
+// Creates everything needed to handle TCP requests
 void startTCP() {
 
     // Creates the TCP socket
@@ -1406,48 +1428,19 @@ void startTCP() {
     }
 }
 
+
+// SIGINT handler that destroys the shared memory
 void sigintHandlerWithSharedMemory(int signum) {
     sem_destroy(&sharedAID->sem); // Destroys the semaphore
     shmdt(sharedAID); // Destroys the shared memory
-
-    string userDir = "USERS";
-    for (const auto& entry : filesystem::directory_iterator(userDir)) {
-        if (filesystem::exists(entry.path())) {
-            filesystem::remove_all(entry.path());
-        }
-    } 
-
-    string auctionsDir = "AUCTIONS";
-    for (const auto& entry : filesystem::directory_iterator(auctionsDir)) {
-        if (filesystem::exists(entry.path())) {
-            filesystem::remove_all(entry.path());
-        }
-    } 
-
-    int ret;
-    // closed both sockets
-    if (fd_tcp != -1) {
-        do {
-            ret = close(fd_tcp);
-        } while (ret == -1 && errno == EINTR);
-    }
-    if (fd_udp != -1) {
-        do {
-            ret = close(fd_udp);
-        } while (ret == -1 && errno == EINTR);
-    }
-    if (tcp_child != -1) {
-        do {
-            ret = close(tcp_child);
-        } while (ret == -1 && errno == EINTR);
-    }
-    exit(EXIT_SUCCESS);
-}
-
-void sigintHandler(int signum) {
     terminateServer(EXIT_SUCCESS);
 }
 
+
+// SIGINT handler which only terminates server
+void sigintHandler(int signum) {
+    terminateServer(EXIT_SUCCESS);
+}
 
 
 int main(int argc, char *argv[]) {
