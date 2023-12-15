@@ -4,6 +4,7 @@
 // remove sigint handler
 // maybe change parseInput to splitString cause it is used in other cases
 // bids always have 6 chars? (not necessary?)
+// send file by parts
 
 using namespace std;
 
@@ -1066,7 +1067,7 @@ void handleTCPRequest(int &fd) {
                     response += "OK ";
                     response += fname + " ";
                     response += fsize_str + " ";
-                    response += openJPG(assetPath) + "\n";
+                    response += openFile(assetPath) + "\n";
                     to_print = "[LOG]: " + to_string(getpid()) + " prepared asset to send\n";
                     cout << to_print;
                     break;

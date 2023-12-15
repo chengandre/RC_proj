@@ -42,12 +42,6 @@ int parseCommand(string &command) {
     }
 }
 
-void saveJPG(string &data, string &fname) {
-    std::ofstream fout(fname, std::ios::binary);
-    fout.write(data.c_str(), data.size());
-    fout.close();
-}
-
 void sendReceiveUDPRequest(string &message, int size, string &response) {
     //int total_received = 0;
     int total_sent = 0;
@@ -586,9 +580,9 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
 
                 message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + auction_name + " ";
                 message += start_value + " " + duration + " " + fname + " ";
-                tmp = openJPG(fname);
+                tmp = openFile(fname);
                 message += to_string(tmp.size()) + " ";
-                message += openJPG(fname) + "\n";
+                message += openFile(fname) + "\n";
 
                 sendTCPmessage(fd_tcp, message, message.size());
 

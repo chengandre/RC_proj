@@ -138,7 +138,7 @@ void checkHour(string &hour) {
     }
 }
 
-string openJPG(string fname) {
+string openFile(string fname) {
     ifstream fin(fname, ios::binary);
     if (!fin) {
         throw string("Error opening file to read");

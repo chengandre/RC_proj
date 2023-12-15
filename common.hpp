@@ -43,7 +43,7 @@ void checkDate(string &date);
 
 void checkHour(string &hour);
 
-string openJPG(string fname);
+string openFile(string fname);
 
 void printVectorString(vector<string> &target);
 
