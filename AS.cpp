@@ -296,11 +296,10 @@ string handleUDPRequest(char request[]) {
     int request_type;
 
     parseInput(request, request_arguments); // split request by spaces
-    // verificar syntax do request (espacos, \n)
     request_type = parseCommand(request_arguments.at(0));
 
     try {
-        checkUDPSyntax(string(request));
+        checkUDPSyntax(string(request)); // check the overall syntax of the request (spaces and \n)
         switch(request_type) {
             case LOGIN: {
                 if (verbose) cout << "[LOG]: UDP Got LOGIN request from " << host << ":" << service << endl;
@@ -309,24 +308,29 @@ string handleUDPRequest(char request[]) {
                 string uid = request_arguments.at(1);
                 string pass = request_arguments.at(2);
 
+                // Check arguments syntax
                 checkUID(uid);
                 checkPasswordSyntax(pass);
 
-                string loginDir = "USERS/" + uid;
+                string loginDir = "USERS/" + uid; 
                 string passTxt = loginDir + "/" + uid + "_pass.txt";
                 if (exists(loginDir) && exists(passTxt)) {
+                    // User already registered
                     string loginTxt;
                     loginTxt = loginDir + "/" + uid + "_login.txt";
-                    if (exists(loginTxt)) {
+                    if (exists(loginTxt)) { // check if logged in
                         cout << "[LOG]: User " << uid << " already logged in" << endl;
                         response += "OK\n";
                     } else if (createLogin(uid, pass)) {
+                        // User not logged in, tries to log in
                         response += "OK\n";
                     } else {
+                        // Wrong password
                         response += "NOK\n";
                     }
                 }
                 else {
+                    // "New" user
                     Register(uid, pass);
                     createLogin(uid, pass);
                     response += "REG\n";
@@ -337,26 +341,33 @@ string handleUDPRequest(char request[]) {
                 if (verbose) cout << "[LOG]: UDP Got LOGOUT request from " << host << ":" << service << endl;
 
                 response = "RLO ";
+
                 string uid = request_arguments.at(1);
                 string pass = request_arguments.at(2);
                 
+                // Check arguments syntax
                 checkUID(uid);
                 checkPasswordSyntax(pass);
 
                 string loginDir = "USERS/" + uid;
                 string passTxt = loginDir + "/" + uid + "_pass.txt";
-                if (exists(loginDir) && exists(passTxt)) {
+                if (exists(loginDir) && exists(passTxt)) { // checks if user is registered
+                    // Registered User
+
                     string loginTxt;
                     loginTxt = loginDir + "/" + uid + "_login.txt";
-                    if (!exists(loginTxt)) {
+                    if (!exists(loginTxt)) { // check if user is logged in
                         cout << "[LOG]: User not logged in" << endl;
                         response += "NOK\n";
-                    } else if (!removeLogin(uid, pass)) {
+                    } else if (!removeLogin(uid, pass)) { // tries to log out
+                        // Wrong password
                         response += "NOK\n";
                     } else {
+                        // Logged out
                         response += "OK\n";
                     }
                 } else {
+                    // User not registered
                     cout << "[LOG]: User not yet registered" << endl;;
                     response += "UNR\n";
                 }
@@ -369,22 +380,27 @@ string handleUDPRequest(char request[]) {
                 string uid = request_arguments.at(1);
                 string pass = request_arguments.at(2);
 
+                // check arguments syntax
                 checkUID(uid);
                 checkPasswordSyntax(pass);
 
                 string loginDir = "USERS/" + uid;
                 string passTxt = loginDir + "/" + uid + "_pass.txt";
-                if (exists(loginDir) && exists(passTxt)) {
+                if (exists(loginDir) && exists(passTxt)) { // checks if the user is registered
+                    // Registered User
                     string loginTxt = loginDir + "/" + uid + "_login.txt";
-                    if (exists(loginTxt)) {
+                    if (exists(loginTxt)) { // checks if user is logged in
+                        // User logged in -> Unregisters the user
                         removeFile(loginTxt);
                         removeFile(passTxt);
                         response += "OK\n";
                     } else {
+                        // User not logged in
                         cout << "[LOG]: User not logged in" << endl;
                         response += "NOK\n";
                     }
                 } else {
+                    // User is not registered yet
                     cout << "[LOG]: User not registered" << endl;
                     response += "UNR\n";
                 }
@@ -396,36 +412,42 @@ string handleUDPRequest(char request[]) {
                 response = "RMA ";
                 string uid = request_arguments.at(1);
 
+                //check UID syntax
                 checkUID(uid);
 
                 string hostedDir = "USERS/" + uid + "/HOSTED";
                 string loginTxt = "USERS/" + uid + "/" + uid + "_login.txt";
-            
-                if (filesystem::is_empty(hostedDir)) {
+
+                if (filesystem::is_empty(hostedDir)) { // checks if user has auctions
                     response += "NOK\n";
-                } else if (!exists(loginTxt)) {
+                } else if (!exists(loginTxt)) { // checks if logged in
                     response += "NLG\n";
                 } else {
-                    string tmp_response;
+                    // User is logged in and has auctions
+
+                    string tmp_response; // Add response to a tmp string, in case of error
                     tmp_response += "OK"; 
 
                     vector<string> auctionsPath;
                     for (auto const &entry : filesystem::directory_iterator(hostedDir)) {
+                        // Add all auctions to a vector
                         auctionsPath.push_back(entry.path().string());
                     }
+                    // Sorts the vector
                     sort(auctionsPath.begin(), auctionsPath.end());
 
                     string aid;
                     for (string &path: auctionsPath) {
-                        aid = getSubString(path, 20, 3);
+                        aid = getSubString(path, 20, 3); // gets AID from path
                         if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
-                            // terminou ou ja esta fora de prazo
+                            // Auction closed or should've been closed (now it's closed)
                             tmp_response += " " + aid + " 0";
                         } else {
+                            // Active auction
                             tmp_response += " " + aid + " 1";
                         }
                     }
-                    response += tmp_response;
+                    response += tmp_response; // if no errors, complete the response
                     response += "\n";
                 }
                 break;
@@ -436,34 +458,39 @@ string handleUDPRequest(char request[]) {
                 response = "RMB ";
                 string uid = request_arguments.at(1);
 
+                // check argument syntax
                 checkUID(uid);
 
                 string biddedDir = "USERS/" + uid + "/BIDDED";
                 string loginTxt = "USERS/" + uid + "/" + uid + "_login.txt";
-                if (filesystem::is_empty(biddedDir)) {
+                if (filesystem::is_empty(biddedDir)) { // check if user has bids
                     response += "NOK\n";
-                } else if (!exists(loginTxt)) {
+                } else if (!exists(loginTxt)) { // checks if user is logged in
                     response += "NLG\n";
                 } else {
+                    // User has bids and is logged in
                     string tmp_response = "OK";
 
                     vector<string> bidsPath;
                     for (auto const &entry : filesystem::directory_iterator(biddedDir)) {
+                        // Add all bids to a vector
                         bidsPath.push_back(entry.path().string());
                     }
+                    // Sorts the vector of bids
                     sort(bidsPath.begin(), bidsPath.end());
 
                     string aid;
                     for (string &entry : bidsPath) {
-                        aid = getSubString(entry, 20, 3);
-                        if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
-                            // terminou ou ja esta fora de prazo
+                        aid = getSubString(entry, 20, 3); // gets the AID from path
+                        if (auctionEnded(aid) || !checkAuctionDuration(aid)) { 
+                            // Auction closed or should've been closed (now, it's closed)
                             tmp_response += " " + aid + " 0";
                         } else {
+                            // Active auction
                             tmp_response += " " + aid + " 1";
                         }
                     }
-                    response += tmp_response;
+                    response += tmp_response; // Complete response, if no errors
                     response += "\n";
                 }
                 break;
@@ -473,27 +500,32 @@ string handleUDPRequest(char request[]) {
 
                 response = "RLS ";
                 string auctionsDir = "AUCTIONS";
-                if (filesystem::is_empty(auctionsDir)) {
+                if (filesystem::is_empty(auctionsDir)) { // Checks if there are auctions
                     response += "NOK\n";
                 } else {
+                    // There are auctions
                     string tmp_response = "OK";
 
                     vector<string> auctionsPath;
                     for (auto const &entry : filesystem::directory_iterator(auctionsDir)) {
+                        // Add the auctions to a vector
                         auctionsPath.push_back(entry.path().string());
                     }
+                    // Sort them
                     sort(auctionsPath.begin(), auctionsPath.end());
 
                     string aid;
                     for (string &entry : auctionsPath) {
-                        aid = getSubString(entry, 9, 3);
+                        aid = getSubString(entry, 9, 3); // Get Aid from path
                         if (auctionEnded(aid) || !checkAuctionDuration(aid)) {
+                            // Auction closed or should've been closed (now, it's closed)
                             tmp_response += " " + aid + " 0";
                         } else {
+                            // Active auction
                             tmp_response += " " + aid + " 1";
                         }
                     }
-                    response += tmp_response;
+                    response += tmp_response; // Complete response, if no errors
                     response += "\n";
                 }
                 break;
@@ -502,26 +534,28 @@ string handleUDPRequest(char request[]) {
                 if (verbose) cout << "[LOG]: UDP Got SHOW_RECORD request from " << host << ":" << service << endl;
                 response = "RRC ";
                 string aid = request_arguments.at(1);
+
+                // check argument syntax
                 checkAID(aid);
                 
                 string auctionDir = "AUCTIONS/" + aid;
-                if (!exists(auctionDir)) {
+                if (!exists(auctionDir)) { // checks if auction exists
                     response += "NOK\n";
                 } else {
-                    checkAuctionDuration(aid);
-
-                    response += "OK ";
+                    checkAuctionDuration(aid); // checks if auction status is correct
+                    string tmp_response;
+                    tmp_response += "OK ";
 
                     string startTxt = auctionDir + "/START_" + aid + ".txt";
-                    ifstream fin(startTxt);
+                    ifstream fin(startTxt); // Open START_AID.txt to read auction's info
                     if (!fin) {
                         throw string("[LOG]: Couldn't open start auction text");
                     }
 
                     string content;
                     vector<string> content_arguments;
-                    getline(fin, content);
-                    parseInput(content, content_arguments);
+                    getline(fin, content); // read all file's content into content
+                    parseInput(content, content_arguments); // separate by spaces
                     fin.close();
 
                     string uid = content_arguments.at(0);
@@ -532,37 +566,37 @@ string handleUDPRequest(char request[]) {
                     string date = content_arguments.at(5);
                     string time = content_arguments.at(6);
 
-                    response += uid + " ";
-                    response += auction_name + " ";
-                    response += fname + " ";
-                    response += start_value + " ";
-                    response += date + " ";
-                    response += time + " ";
-                    response += duration;
+                    tmp_response += uid + " ";
+                    tmp_response += auction_name + " ";
+                    tmp_response += fname + " ";
+                    tmp_response += start_value + " ";
+                    tmp_response += date + " ";
+                    tmp_response += time + " ";
+                    tmp_response += duration;
 
-                    // 50 maior bids = 50 bids mais recentes?
                     string bidsDir = auctionDir + "/BIDS";
-                    if (!filesystem::is_empty(bidsDir)) {
+                    if (!filesystem::is_empty(bidsDir)) { // checks if auction has bids
+                        // there are bids to list
                         vector<string> bidsPath;
 
-                        // obter vetor com todas as bids
                         for (auto const &entry : filesystem::directory_iterator(bidsDir)) {
+                            // Add all bids to a vector
                             bidsPath.push_back(entry.path().string());
                         }
 
-                        // ordena las decrescente
-                        sort(bidsPath.rbegin(), bidsPath.rend());
+                        sort(bidsPath.rbegin(), bidsPath.rend()); // sort them in descending order
                         int n = min(int(bidsPath.size()), 50);
                         vector<string> sortedBidsPath(bidsPath.begin(), bidsPath.begin() + n);
-                        // obter as 50 bids mais recentes/maiores
+                        // Get the 50 biggest bids, which correspond to the last 50 bids
+                        // (AS doesn't accept bids lower than the current highest)
 
                         for (int i = sortedBidsPath.size()-1; i >= 0; i--) {
-                            ifstream fin(sortedBidsPath.at(i));
+                            ifstream fin(sortedBidsPath.at(i)); // Open each bid file to read its info
                             if (!fin) {
                                 throw string("[LOG]: Couldn't open bid file on show_record");
                             }
-                            getline(fin, content);
-                            parseInput(content, content_arguments);
+                            getline(fin, content); // read all info into content
+                            parseInput(content, content_arguments); // separate by spaces
                             fin.close();
 
                             string uid = content_arguments.at(0);
@@ -570,18 +604,20 @@ string handleUDPRequest(char request[]) {
                             string date = content_arguments.at(2);
                             string time = content_arguments.at(3);
                             string seconds = content_arguments.at(4);
-                            response += " B ";
-                            response += uid + " ";
-                            response += value+ " ";
-                            response += date + " ";
-                            response += time + " ";
-                            response += seconds;
+                            tmp_response += " B ";
+                            tmp_response += uid + " ";
+                            tmp_response += value+ " ";
+                            tmp_response += date + " ";
+                            tmp_response += time + " ";
+                            tmp_response += seconds;
                         }
                     }
 
                     string endTxt = auctionDir + "/END_" + aid + ".txt";
-                    if (exists(endTxt)) {
-                        ifstream fin(endTxt);
+                    if (exists(endTxt)) { // checks if auction has ended
+                        // Auction has been closed
+
+                        ifstream fin(endTxt); // open END_AID.txt to read info
                         if (!fin) {
                             throw string("[LOG]: Couldn't open bid file on show_record");
                         }
@@ -593,11 +629,12 @@ string handleUDPRequest(char request[]) {
                         string time = content_arguments.at(1);
                         string duration = content_arguments.at(2);
 
-                        response += " E ";
-                        response += date + " ";
-                        response += time + " ";
-                        response += duration;
+                        tmp_response += " E ";
+                        tmp_response += date + " ";
+                        tmp_response += time + " ";
+                        tmp_response += duration;
                     }
+                    response += tmp_response;
                     response += "\n";
                 }
                 break;
@@ -609,6 +646,7 @@ string handleUDPRequest(char request[]) {
     }
     catch(string error)
     {
+        // Some kind of error occured, probably IO
         cout << error << endl;
         response += "ERR\n";
     }
@@ -617,7 +655,7 @@ string handleUDPRequest(char request[]) {
         response += "ERR\n";
     }
 
-    return response;
+    return response; // response to send to user
 }
 
 void startUDP() {
@@ -761,7 +799,7 @@ int receiveTCPfile(int fd, int size, string &fname, string &aid) {
         throw string("Error creating asset file");
     }
 
-    //cout << "[LOG]: " << getpid() << " Receiving TCP file" << endl;
+    // cout << "[LOG]: " << getpid() << " Receiving TCP file" << endl;
     while (total_received < size) {
         to_read = min(128, size-total_received);
         n = read(fd, tmp, to_read);
@@ -774,7 +812,7 @@ int receiveTCPfile(int fd, int size, string &fname, string &aid) {
         total_received += n;
     }
 
-    //cout << "[LOG]: " << getpid() << " Received file of size " << total_received << " fsize is " << size << endl;
+    // cout << "[LOG]: " << getpid() << " Received file of size " << total_received << " fsize is " << size << endl;
     fout.close();
 
     return total_received;
