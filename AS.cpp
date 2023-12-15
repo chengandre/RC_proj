@@ -7,20 +7,17 @@
 
 using namespace std;
 
-int fd_tcp, fd_udp, tcp_child, errcode;
-ssize_t n_tcp, n_udp;
+int fd_tcp, fd_udp;
 socklen_t addrlen;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
-string hostname, port, ip, input;
-char buffer[BUFFERSIZE];
-vector<string> inputs;
+string port;
 bool verbose = false;
 time_t fulltime;
 struct tm *current_time;
 string current_time_str;
 SharedAID *sharedAID;
-char host[NI_MAXHOST],service[NI_MAXSERV];
+char host[NI_MAXHOST], service[NI_MAXSERV];
 
 // Checks if a file/directory exists
 bool exists(string& name) {
@@ -291,7 +288,7 @@ bool checkAuctionDuration(string const &aid) {
 }
 
 // Handles UDP request from User, returns the response to send
-string handleUDPRequest(char request[], char host[], char service[]) {
+string handleUDPRequest(char request[]) {
 
     string response; // message to send to user
     vector<string> request_arguments;
@@ -319,7 +316,7 @@ string handleUDPRequest(char request[], char host[], char service[]) {
                     string loginTxt;
                     loginTxt = loginDir + "/" + uid + "_login.txt";
                     if (exists(loginTxt)) {
-                        cout << "[LOG]: User already logged in" << endl;
+                        cout << "[LOG]: User " << uid << " already logged in" << endl;
                         response += "OK\n";
                     } else if (createLogin(uid, pass)) {
                         response += "OK\n";
@@ -642,7 +639,7 @@ void startUDP() {
         exit(EXIT_FAILURE);
     }
 
-    n_udp = ::bind(fd_udp, res->ai_addr, res->ai_addrlen);
+    int n_udp = ::bind(fd_udp, res->ai_addr, res->ai_addrlen);
     if (n_udp == -1) {
         cout << "[LOG]: UDP Bind error: " << strerror(errno);
         exit(EXIT_FAILURE);
@@ -664,6 +661,7 @@ void startUDP() {
 
     cout << "[LOG]: UDP starting to read from socket" << endl;
     string response;
+    char buffer[BUFFERSIZE];
     while (true) {
         addrlen = sizeof(addr);
         response.clear();
@@ -674,10 +672,11 @@ void startUDP() {
             cout << "Error reading request from UDP socket" << endl;
             response = "ERR\n";
         } else {
+            int errcode;
             if ((errcode = getnameinfo((struct sockaddr *) &addr, addrlen, host, sizeof(host), service, sizeof(service), NI_NUMERICHOST)) != 0) {
                 cout << "[LOG]: UDP Error getnameinfo: " << gai_strerror(errcode) << endl;
             } 
-            response = handleUDPRequest(buffer, host, service);
+            response = handleUDPRequest(buffer);
         }
 
         cout << "[LOG]: UDP sending response: " << response;
@@ -839,7 +838,7 @@ void deleteAuctionDir(string &aid) {
     removeDir(AID_dirname);
 }
 
-string getNextAID(SharedAID *sharedAID) {
+string getNextAID() {
     // returns the next available AID
 
     sem_wait(&sharedAID->sem); // prevents other processes from getting an aid
@@ -903,7 +902,7 @@ bool checkOwner(string &uid, string &aid) {
     return strcmp(uid.c_str(), tmp);
 }
 
-void handleTCPRequest(int &fd, SharedAID *sharedAID, char host[], char service[]) {
+void handleTCPRequest(int &fd) {
     // handles TCP request from user (receives, handles and answers)
 
     string request, tmp, response;
@@ -944,7 +943,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID, char host[], char service[]
                         cout << "[LOG]: Incorrect password" << endl;
                         response += "NOK\n";
                     } else {
-                        string aid = getNextAID(sharedAID);
+                        string aid = getNextAID();
 
                         createAuctionDir(aid);
                         receiveTCPfile(fd, fsize, request_arguments.at(5), aid);
@@ -1199,7 +1198,7 @@ void handleTCPRequest(int &fd, SharedAID *sharedAID, char host[], char service[]
     close(fd);
 }
 
-void startTCP(SharedAID *sharedAID) {
+void startTCP() {
 
     fd_tcp = socket(AF_INET, SOCK_STREAM, 0);
     if (fd_tcp == -1) {
@@ -1214,7 +1213,7 @@ void startTCP(SharedAID *sharedAID) {
         exit(EXIT_FAILURE);
     }
 
-    n_tcp = ::bind(fd_tcp, res->ai_addr, res->ai_addrlen);
+    int n_tcp = ::bind(fd_tcp, res->ai_addr, res->ai_addrlen);
     if (n_tcp == -1) {
         cout << "[LOG]: TCP Bind error" << endl;
         exit(EXIT_FAILURE);
@@ -1227,6 +1226,8 @@ void startTCP(SharedAID *sharedAID) {
     }
 
     int ret;
+    int tcp_child;
+    int errcode;
     while (true) {
         addrlen = sizeof(addr);
         cout << "[LOG]: Parent " << getpid() << " starting to accept requests" << endl;
@@ -1254,11 +1255,11 @@ void startTCP(SharedAID *sharedAID) {
         if (setsockopt(tcp_child, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) == -1) {
             cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
             do {
-                ret = close(tcp_child)  ;
+                ret = close(tcp_child);
             } while (ret == -1 && errno == EINTR);
             exit(EXIT_FAILURE);
         }
-
+        
         pid_t pid = fork();
         if (pid == -1) {
             cout << "TCP fork error" << endl;
@@ -1272,7 +1273,7 @@ void startTCP(SharedAID *sharedAID) {
                 cout << "[LOG]: TCP Error getnameinfo: " << gai_strerror(errcode) << endl;
             }
             
-            handleTCPRequest(tcp_child, sharedAID, host, service);
+            handleTCPRequest(tcp_child);
             if (shmdt(sharedAID) == -1) {
                 cout << "[LOG]: " << getpid() << " erro detaching shared memory" << endl;
             }
@@ -1359,7 +1360,7 @@ int main(int argc, char *argv[]) {
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE;
 
-    errcode = getaddrinfo(NULL, port.c_str(), &hints, &res);
+    int errcode = getaddrinfo(NULL, port.c_str(), &hints, &res);
     if (errcode != 0) {
         cout << gai_strerror(errcode);
         exit(EXIT_FAILURE);
@@ -1380,7 +1381,7 @@ int main(int argc, char *argv[]) {
         startUDP();
     } else {
         signal(SIGINT, SIG_DFL);
-        startTCP(sharedAID);
+        startTCP();
     }
     
     return 0;
