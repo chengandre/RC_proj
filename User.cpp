@@ -1,9 +1,6 @@
 #include "User.hpp"
 #include "common.hpp"
 
-// [0-9] to .at() check exception, better print
-// close streams
-
 using namespace std;
 
 int fd_udp;
@@ -229,7 +226,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     cout << "User not logged in" << endl;
                 } else if (response_arguments.at(1) == "OK") {
                     string to_print; // tmp string that stores the information, in case of a syntax error by the response
-                    to_print += "Listing auctions from user " + uid + ":\n";
+                    to_print += "Listing auctions from user " + uid + ":\n\n";
                     for (size_t i = 2; i < response_arguments.size() - 1; i += 2) {
                         // Iterate over the response two arguments by two, corresponding to the pair AID(i) Status(i+1)
                         to_print += "Auction " + response_arguments.at(i) + " ";
@@ -274,7 +271,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     cout << "User not logged in" << endl;
                 } else if (response_arguments.at(1) == "OK") {
                     string to_print; // tmp string that stores the information, in case of a syntax error by the response
-                    to_print += "Listing auctions from user " + uid + " in which has bidded:\n";
+                    to_print += "Listing auctions in which user " + uid + " has bidded:\n\n";
                     for (size_t i = 2; i < response_arguments.size() - 1; i += 2) {
                         // Iterate over the response two arguments by two, corresponding to the pair AID(i) Status(i+1)
                         to_print += "Auction " + response_arguments.at(i) + " ";
@@ -313,7 +310,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     cout << "No auctions have been started yet" << endl;
                 } else if (response_arguments.at(1) == "OK") {
                     string to_print; // tmp string that stores the information, in case of a syntax error by the response
-                    to_print += "Listing all auctions:\n";
+                    to_print += "Listing all auctions:\n\n";
                     for (size_t i = 2; i < response_arguments.size() - 1; i += 2) {
                         // Iterate over the response two arguments by two, corresponding to the pair AID(i) Status(i+1)
                         to_print += "Auction " + response_arguments.at(i) + " ";
@@ -373,13 +370,13 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     checkHour(hour);
                     checkDuration(duration);
 
-                    to_print += "Auction " + aid + " was started by the user " + uid + ".\n";
+                    to_print += "Auction " + aid + " hosted by the user " + uid + ".\n";
                     to_print += "Auction name: " + auction_name + "\n";
-                    to_print += "File name: " + fname + "\n";
+                    to_print += "Asset file name: " + fname + "\n";
                     to_print += "Starting price: " + start_value + "\n";
                     to_print += "Start date: " + date + "\n";
                     to_print += "Start hour: " + hour + "\n";
-                    to_print += "Duration: " + duration + "\n";
+                    to_print += "Duration: " + duration + "\n\n";
 
                     size_t index = 8; // index of the current argument being "printed"
                     // 8 is the duration, the next one should be 'B' or 'E'
@@ -399,7 +396,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                             if (response_arguments[index] == "B") {
                                 // Bid's information
                                 if (!bids) { // check if we have printed a bid or not
-                                    cout << "Listing bids:" << endl;
+                                    to_print += "Listing bids:\n";
                                     bids = true; // We've encountered a bid
                                 }
 
@@ -419,7 +416,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                                 to_print += "Bid value: " + bid_value + "\n";
                                 to_print += "Bid date: " + bid_date + "\n";
                                 to_print += "Bid hour: " + bid_hour + "\n";
-                                to_print += "Bid duration: " + bid_duration + "\n";
+                                to_print += "( " + bid_duration + " seconds after start )\n\n";
                             }
                             else if (response_arguments[index] == "E") {
                                 // Auction has ended
@@ -680,7 +677,7 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                         throw string("Invalid response from server");
                     }
 
-                    cout << "Asset received successfully" << endl;
+                    cout << "Asset " << fname << " of size " << fsize_str << " bytes received successfully" << endl;
                 }
                 break;
             }

@@ -1072,7 +1072,7 @@ void handleTCPRequest(int &fd) {
                     response = "\n";
                     sendTCPmessage(fd, response, response.size());
 
-                    to_print = "[LOG]: " + to_string(getpid()) + " prepared asset to send\n";
+                    to_print = "[LOG]: " + to_string(getpid()) + " prepared asset to send asset " + fname + " of size " + fsize_str + " bytes";
                     cout << to_print;
                     return;
                 }
