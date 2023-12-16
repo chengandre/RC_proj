@@ -686,7 +686,7 @@ string handleUDPRequest(char request[]) {
         response += "ERR\n";
     }
     catch (exception& ex) {
-        cout << ex.what() << endl;
+        cout << "Invalid request from user" << endl;
         response += "ERR\n";
     }
 
@@ -1244,7 +1244,7 @@ void handleTCPRequest(int &fd) {
         response += "ERR\n";
     }
     catch (exception& ex) {
-        cout << ex.what() << endl;
+        cout << "Invalid request from user" << endl;
         response += "ERR\n";
     }
 
