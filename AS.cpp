@@ -48,9 +48,6 @@ bool exists(string& name) {
 }
 
 
-
-
-
 // Returns the request_code given string request
 int parseCommand(string &command) {
     if (command == "LIN") {
@@ -397,6 +394,7 @@ string handleUDPRequest(char request[]) {
                         // User logged in -> Unregisters the user
                         removeFile(loginTxt);
                         removeFile(passTxt);
+                        cout << "[LOG]: User " + uid + " unregistered" << endl;
                         response += "OK\n";
                     } else {
                         // User not logged in
@@ -423,8 +421,10 @@ string handleUDPRequest(char request[]) {
                 string loginTxt = "USERS/" + uid + "/" + uid + "_login.txt";
 
                 if (filesystem::is_empty(hostedDir)) { // checks if user has auctions
+                    cout << "[LOG]: User " << uid << " has not hosted any auction" << endl;
                     response += "NOK\n";
                 } else if (!exists(loginTxt)) { // checks if logged in
+                    cout << "[LOG]: User " << uid << " is not logged in" << endl;
                     response += "NLG\n";
                 } else {
                     // User is logged in and has auctions
@@ -453,6 +453,7 @@ string handleUDPRequest(char request[]) {
                     }
                     response += tmp_response; // if no errors, complete the response
                     response += "\n";
+                    cout << "[LOG]: myauctions response prepared" << endl;
                 }
                 break;
             }
@@ -468,8 +469,10 @@ string handleUDPRequest(char request[]) {
                 string biddedDir = "USERS/" + uid + "/BIDDED";
                 string loginTxt = "USERS/" + uid + "/" + uid + "_login.txt";
                 if (filesystem::is_empty(biddedDir)) { // check if user has bids
+                    cout << "[LOG]: User " << uid << " has not bidded" << endl;
                     response += "NOK\n";
                 } else if (!exists(loginTxt)) { // checks if user is logged in
+                    cout << "[LOG]: User " << uid << " is not logged in" << endl;
                     response += "NLG\n";
                 } else {
                     // User has bids and is logged in
@@ -496,6 +499,7 @@ string handleUDPRequest(char request[]) {
                     }
                     response += tmp_response; // Complete response, if no errors
                     response += "\n";
+                    cout << "[LOG]: mybids response prepared" << endl;
                 }
                 break;
             }
@@ -505,6 +509,7 @@ string handleUDPRequest(char request[]) {
                 response = "RLS ";
                 string auctionsDir = "AUCTIONS";
                 if (filesystem::is_empty(auctionsDir)) { // Checks if there are auctions
+                    cout << "[LOG]: No auctions to list" << endl;
                     response += "NOK\n";
                 } else {
                     // There are auctions
@@ -531,6 +536,7 @@ string handleUDPRequest(char request[]) {
                     }
                     response += tmp_response; // Complete response, if no errors
                     response += "\n";
+                    cout << "[LOG]: list response prepared" << endl;
                 }
                 break;
             }
@@ -544,6 +550,7 @@ string handleUDPRequest(char request[]) {
                 
                 string auctionDir = "AUCTIONS/" + aid;
                 if (!exists(auctionDir)) { // checks if auction exists
+                    cout << "[LOG]: No auction with aid " << aid << endl;
                     response += "NOK\n";
                 } else {
                     checkAuctionDuration(aid); // checks if auction status is correct
@@ -640,6 +647,7 @@ string handleUDPRequest(char request[]) {
                     }
                     response += tmp_response;
                     response += "\n";
+                    cout << "[LOG]: show_record response prepared" << endl;
                 }
                 break;
             }
@@ -696,7 +704,7 @@ void startUDP() {
         terminateServer(EXIT_FAILURE);
     }
 
-    if (verbose) cout << "[LOG]: UDP starting to read from socket" << endl;
+    cout << "[LOG]: UDP ready" << endl;
     string response;
     char buffer[BUFFERSIZE];
     while (true) {
@@ -1259,6 +1267,7 @@ void startTCP() {
         terminateServer(EXIT_FAILURE);
     }
 
+    cout << "[LOG]: TCP ready" << endl;
     int ret;
     int errcode;
     while (true) {
