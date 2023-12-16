@@ -1,6 +1,9 @@
 #include "AS.hpp"
 #include "common.hpp"
 
+
+// check cout 
+
 using namespace std;
 
 int fd_tcp, fd_udp, tcp_child;
@@ -760,75 +763,6 @@ void startUDP() {
 }
 
 
-// Reads from a TCP sockets 'size' bytes
-int receiveTCPsize(int fd, int size, string &request) {
-    int total_received = 0; // bytes received 
-    int n; // bytes read from socket at a time
-    char tmp[128];
-    request.clear();
-
-    while (total_received < size) { // while bytes read is not enough keep reading
-        n = read(fd, tmp, 1); // read one byte at a time
-        if (n == -1) {
-            throw string("Error reading from TCP socket");
-        }
-        concatenateString(request, tmp, n); // add the byte to the request
-        total_received += n; // update bytes received
-    }
-
-    return total_received;
-}
-
-
-// Keep reading from TCP socket untill it reads 'size' spaces
-int receiveTCPspace(int fd, int size, string &request) {
-    int total_received = 0; // bytes read
-    int total_spaces = 0; // spaces read
-    int n; // bytes read at a time
-    char tmp[128];
-    request.clear();
-
-    while (total_spaces < size) { // while spaces read is not enough, keep reading
-        n = read(fd, tmp, 1); // read byte
-        if (n == -1) {
-            throw string("Error reading from TCP socket");
-        }
-        concatenateString(request, tmp, n); // add byte to request
-        total_received += n; // update bytes read
-        if (tmp[0] == ' ') {
-            // if bytes is a space, increment spaces read
-            total_spaces++;
-        }
-    }
-
-    return total_received;
-}
-
-
-// Reads from a TCP socket untill it reads a '\n'
-int receiveTCPend(int fd, string &response) {
-    int total_received = 0; // bytes read (not counting the '\n')
-    int n; // bytes read at a time
-    char tmp[128];
-    response.clear();
-    
-    while (true) {
-        n = read(fd, tmp, 1); // reads a bytes
-        if (n == -1) {
-            throw string("Error reading from TCP socket");
-        } else if (tmp[0] == '\n') {
-            // bytes is a '\n' then quit
-            break;
-        }
-        concatenateString(response, tmp, n);
-        total_received += n;
-        
-    }
-
-    return total_received;
-}
-
-
 // Reads a File from TCP socket, 128 byte at a time, while storing it to the dest. file
 int receiveTCPfile(int fd, int size, string &fname, string &aid) {
     int total_received = 0; // bytes received
@@ -858,23 +792,6 @@ int receiveTCPfile(int fd, int size, string &fname, string &aid) {
 
     fout.close();
     return total_received;
-}
-
-
-// Sends a response to user through the TCP socket
-int sendTCPresponse(int fd, string &message, int size) {
-    int total_sent = 0; // bytes sent
-    int n; // bytes sent at a time
-    while (total_sent < size) { // while message has not been sent totally
-        n = write(fd, message.c_str() + total_sent, size - total_sent);
-        if (n == -1) {
-            cout << "TCP send error" << endl;
-            return n;
-        }
-        total_sent += n;
-    }
-
-    return total_sent;
 }
 
 
@@ -1178,10 +1095,17 @@ void handleTCPRequest(int &fd) {
                     response += "OK ";
                     response += fname + " ";
                     response += fsize_str + " ";
-                    response += openFile(assetPath) + "\n"; // writes file's content into the response string
+
+                    sendTCPmessage(fd, response, response.size());
+                    sendTCPfile(fd, assetPath);
+
+                    response.clear();
+                    response = "\n";
+                    sendTCPmessage(fd, response, response.size());
+
                     to_print = "[LOG]: " + to_string(getpid()) + " prepared asset to send\n";
                     cout << to_print;
-                    break;
+                    return;
                 }
                 case BID:{
                     if (verbose) cout << "[LOG]: " << getpid() << " Got BID request from " << host << ":" << service << endl;
@@ -1324,7 +1248,15 @@ void handleTCPRequest(int &fd) {
         response += "ERR\n";
     }
 
-    sendTCPresponse(fd, response, response.size()); // respond to user
+    try {
+        sendTCPmessage(fd, response, response.size()); // respond to user
+    }
+    catch (string error) {
+        cout << error << endl;
+    }
+    catch (exception& ex) {
+        cout << ex.what() << endl;
+    }
 }
 
 
@@ -1385,7 +1317,7 @@ void startTCP() {
             cout << "[LOG]: " << getpid() << " Error setting timeout" << endl;
             terminateServer(EXIT_FAILURE);
         }
-        
+
         pid_t pid = fork();
         if (pid == -1) {
             cout << "TCP fork error" << endl;

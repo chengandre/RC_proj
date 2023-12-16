@@ -45,7 +45,7 @@ int parseCommand(string &command) {
 }
 
 
-
+// Sends a request to server and receives its response
 void sendReceiveUDPRequest(string &message, int size, string &response) {
     //int total_received = 0;
     int total_sent = 0;
@@ -423,92 +423,15 @@ void handleUDPRequest(int request, vector<string> arguments) {
     } 
 }
 
-int sendTCPmessage(int const &fd, string &message, int size) {
-    //cout << "[LOG]: Sending TCP request" << endl;
-    int total_sent = 0;
-    int n, to_send;
-    while (total_sent < size) {
-        to_send = min(128, size-total_sent);
-        n = write(fd, message.c_str() + total_sent, to_send);
-        if (n == -1) {
-            throw string("Error while sending TCP message");
-        }
-        total_sent += n;    
-    }
-    // cout << "[LOG]: Sent TCP response" << endl;
-    return total_sent;
-}
-
-int receiveTCPsize(int const &fd, int const &size, string &response) {
-    int total_received = 0;
-    int n;
-    char tmp[128];
-    response.clear();
-    //cout << "[LOG]: Receiving TCP request by size" << endl;
-    while (total_received < size) {
-        n = read(fd, tmp, 1);
-        if (n == -1) {
-            throw string("Error while reading from TCP socket, probably due to Syntax Error");
-        }
-        concatenateString(response, tmp, n);
-        total_received += n;
-    }
-    //cout << "[LOG]: Received response of size " << total_received << endl;
-
-    return total_received;
-}
-
-int receiveTCPspace(int fd, int size, string &response) {
-    int total_received = 0;
-    int total_spaces = 0;
-    int n;
-    char tmp[128];
-    response.clear();
-    //cout << "[LOG]: Receiving TCP request by spaces" << endl;
-    while (total_spaces < size) {
-        n = read(fd, tmp, 1);
-        if (n == -1) {
-            throw string("Error while reading from TCP socket, probably due to Syntax Error");
-        }
-        concatenateString(response, tmp, n);
-        total_received += n;
-        if (tmp[0] == ' ') {
-            total_spaces++;
-        }
-    }
-    //cout << "[LOG]: Received response of size " << total_received << endl;
-
-    return total_received;
-}
-
-int receiveTCPend(int fd, string &response) {
-    int total_received = 0;
-    int n;
-    char tmp[128];
-    response.clear();
-    
-    //cout << "[LOG]: Receiving TCP until the end" << endl;
-    while (true) {
-        n = read(fd, tmp, 1);
-        if (n == -1) {
-            throw string("Error while reading from TCP socket, probably due to Syntax Error");
-        } else if (tmp[0] == '\n') {
-            break;
-        }
-        concatenateString(response, tmp, n);
-        total_received += n;
-        
-    }
-    //cout << "[LOG]: Received response of size " << total_received << endl;
-
-    return total_received;
-}
 
 int receiveTCPfile(int fd, int size, string &fname) {
     int total_received = 0;
     int n, to_read;
     char tmp[128];
     ofstream fout(fname, ios::binary);
+    if (!fout) {
+        throw string("Error creating asset file");
+    }
 
     while (total_received < size) {
         to_read = min(128, size-total_received);
@@ -520,12 +443,11 @@ int receiveTCPfile(int fd, int size, string &fname) {
         fout.write(tmp, n);
         total_received += n;
     }
-    //cout << "[LOG]: Received file of size " << total_received << " fsize is " << size << endl;
+   
     fout.close();
-    
     return total_received;
-    // receive image directly into file
 }
+
 
 void handleTCPRequest(int request, vector<string> input_arguments) {
     //cout << "Handling TCP Request" << endl;
@@ -574,9 +496,13 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                 if (!loggedIn) throw string("User not logged in");
 
                 string auction_name = input_arguments[1];
-                string fname = input_arguments[2];
+                string fpath = input_arguments[2];
                 string start_value = input_arguments[3];
                 string duration = input_arguments[4];
+
+                filesystem::path p(fpath);
+                string fname = p.filename();
+
                 checkName(auction_name);
                 checkFileName(fname);
                 checkStartValue(start_value);
@@ -584,10 +510,13 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
 
                 message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + auction_name + " ";
                 message += start_value + " " + duration + " " + fname + " ";
-                tmp = openFile(fname);
-                message += to_string(tmp.size()) + " ";
-                message += openFile(fname) + "\n";
+                message += to_string(filesystem::file_size(fpath)) + " ";
+                sendTCPmessage(fd_tcp, message, message.size());
 
+                sendTCPfile(fd_tcp, fpath);
+
+                message.clear();
+                message = "\n";
                 sendTCPmessage(fd_tcp, message, message.size());
 
                 n = receiveTCPsize(fd_tcp, 7, message);
@@ -687,6 +616,8 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
 
                     n = receiveTCPfile(fd_tcp, fsize, fname);
                     n = receiveTCPend(fd_tcp, message);
+
+                    cout << "Asset received successfully" << endl;
                 }
                 break;
             }

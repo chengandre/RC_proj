@@ -1,6 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <unistd.h>
 #include <stdlib.h>
 #include <string>
 #include <iostream>
@@ -43,8 +44,6 @@ void checkDate(string &date);
 
 void checkHour(string &hour);
 
-string openFile(string fname);
-
 void printVectorString(vector<string> &target);
 
 string getSubString(string const&target, size_t start, size_t size);
@@ -52,5 +51,17 @@ string getSubString(string const&target, size_t start, size_t size);
 void concatenateString(string &target, char item[], int size);
 
 void checkUDPSyntax(string request);
+
+int sendTCPmessage(int fd, string &message, int size);
+
+int sendTCPmessage(int fd, char message[], int size);
+
+int sendTCPfile(int fd, string &fpath);
+
+int receiveTCPsize(int fd, int size, string &request);
+
+int receiveTCPspace(int fd, int size, string &request);
+
+int receiveTCPend(int fd, string &response);
 
 #endif
