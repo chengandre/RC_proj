@@ -140,24 +140,24 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(response, response_arguments); // separate by spaces
-                if (response_arguments[0] == "ERR") {
+                if (response_arguments.at(0) == "ERR") {
                     throw string("Error from server side");
                 } 
-                else if (response_arguments[0] != "RLO" || response.at(3) != ' ') {
+                else if (response_arguments.at(0) != "RLO" || response.at(3) != ' ') {
                     throw string("Invalid response from server");
                 }
 
-                if (response_arguments[1] == "OK") {
+                if (response_arguments.at(1) == "OK") {
                     // User logged out of the server
                     // Remove user info
                     userInfo.clear();
                     loggedIn = false;
                     cout << "Logged out successfully" << endl;
-                } else if (response_arguments[1] == "NOK") {
+                } else if (response_arguments.at(1) == "NOK") {
                     cout << "User not logged in or wrong password" << endl;
-                } else if (response_arguments[1] == "UNR") {
+                } else if (response_arguments.at(1) == "UNR") {
                     cout << "User is not registered" << endl;
-                } else if (response_arguments[1] == "ERR") {
+                } else if (response_arguments.at(1) == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
                     throw string("Invalid response from server");
@@ -167,8 +167,8 @@ void handleUDPRequest(int request, vector<string> arguments) {
             case UNREGISTER: {  
                 if (!loggedIn) throw string("User not logged in"); // User has to be logged in
 
-                string uid = userInfo[0];
-                string pass = userInfo[1];
+                string uid = userInfo.at(0);
+                string pass = userInfo.at(1);
                 // Check arguments syntax
                 checkUID(uid);
                 checkPasswordSyntax(pass);
@@ -180,24 +180,24 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(response, response_arguments); // separate by spaces
-                if (response_arguments[0] == "ERR") {
+                if (response_arguments.at(0) == "ERR") {
                     throw string("Error from server side");
                 } 
-                else if (response_arguments[0] != "RUR" || response.at(3) != ' ') {
+                else if (response_arguments.at(0) != "RUR" || response.at(3) != ' ') {
                     throw string("Invalid response from server");
                 }
 
-                if (response_arguments[1] == "OK") {
+                if (response_arguments.at(1) == "OK") {
                     // User unregistered from server
                     // clear user info
                     userInfo.clear();
                     loggedIn = false;
                     cout << "User unregistered successfully" << endl;
-                } else if (response_arguments[1] == "NOK") {
+                } else if (response_arguments.at(1) == "NOK") {
                     cout << "User not logged in" << endl;
-                } else if (response_arguments[1] == "UNR") {
+                } else if (response_arguments.at(1) == "UNR") {
                     cout << "User not registered" << endl;
-                } else if (response_arguments[1] == "ERR") {
+                } else if (response_arguments.at(1) == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
                     throw string("Invalid response from server");
@@ -206,7 +206,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
             }
             case MYAUCTIONS: {
                 if (!loggedIn) throw string("User not logged in"); // User has to be logged in
-                string uid = userInfo[0];
+                string uid = userInfo.at(0);
                 checkUID(uid); // check argument syntax (should be alright since it was checked on log in)
 
                 message = "LMA " + uid + "\n"; // request message
@@ -216,33 +216,33 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(response, response_arguments); // separate by spaces
-                if (response_arguments[0] == "ERR") {
+                if (response_arguments.at(0) == "ERR") {
                     throw string("Error from server side");
                 } 
-                else if (response_arguments[0] != "RMA" || response.at(3) != ' ') {
+                else if (response_arguments.at(0) != "RMA" || response.at(3) != ' ') {
                     throw string("Invalid response from server");
                 }
 
-                if (response_arguments[1] == "NOK") {
+                if (response_arguments.at(1) == "NOK") {
                     cout << "User has no ongoing auctions" << endl;
-                } else if (response_arguments[1] == "NLG") {
+                } else if (response_arguments.at(1) == "NLG") {
                     cout << "User not logged in" << endl;
-                } else if (response_arguments[1] == "OK") {
+                } else if (response_arguments.at(1) == "OK") {
                     string to_print; // tmp string that stores the information, in case of a syntax error by the response
                     to_print += "Listing auctions from user " + uid + ":\n";
                     for (size_t i = 2; i < response_arguments.size() - 1; i += 2) {
                         // Iterate over the response two arguments by two, corresponding to the pair AID(i) Status(i+1)
-                        to_print += "Auction " + response_arguments[i] + " ";
-                        if (response_arguments[i+1] == "0") {
+                        to_print += "Auction " + response_arguments.at(i) + " ";
+                        if (response_arguments.at(i+1) == "0") {
                             to_print += "Ended\n";
-                        } else if (response_arguments[i+1] == "1") {
+                        } else if (response_arguments.at(i+1) == "1") {
                             to_print += "Ongoing\n";
                         } else {
                             throw string("Invalid response from server");
                         }
                     }
                     cout << to_print; // No syntax errors, print the info
-                } else if (response_arguments[1] == "ERR") {
+                } else if (response_arguments.at(1) == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
                     throw string("Invalid response from server");
@@ -251,7 +251,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
             }
             case MYBIDS: {
                 if (!loggedIn) throw string("User not logged in");
-                string uid = userInfo[0];
+                string uid = userInfo.at(0);
                 checkUID(uid); // check argument syntax (should be alright since it was checked on log in)
 
                 message = "LMB " + uid + "\n"; // request message
@@ -261,33 +261,33 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(response, response_arguments); // separate by spaces
-                if (response_arguments[0] == "ERR") {
+                if (response_arguments.at(0) == "ERR") {
                     throw string("Error from server side");
                 } 
-                else if (response_arguments[0] != "RMB" || response.at(3) != ' ') {
+                else if (response_arguments.at(0) != "RMB" || response.at(3) != ' ') {
                     throw string("Invalid response from server");
                 }
 
-                if (response_arguments[1] == "NOK") {
+                if (response_arguments.at(1) == "NOK") {
                     cout << "User has no ongoing bids" << endl;
-                } else if (response_arguments[1] == "NLG") {
+                } else if (response_arguments.at(1) == "NLG") {
                     cout << "User not logged in" << endl;
-                } else if (response_arguments[1] == "OK") {
+                } else if (response_arguments.at(1) == "OK") {
                     string to_print; // tmp string that stores the information, in case of a syntax error by the response
                     to_print += "Listing auctions from user " + uid + " in which has bidded:\n";
                     for (size_t i = 2; i < response_arguments.size() - 1; i += 2) {
                         // Iterate over the response two arguments by two, corresponding to the pair AID(i) Status(i+1)
-                        to_print += "Auction " + response_arguments[i] + " ";
-                        if (response_arguments[i+1] == "0") {
+                        to_print += "Auction " + response_arguments.at(i) + " ";
+                        if (response_arguments.at(i+1) == "0") {
                             to_print += "Ended\n";
-                        } else if (response_arguments[i+1] == "1") {
+                        } else if (response_arguments.at(i+1) == "1") {
                             to_print += "Ongoing\n";
                         } else {
                             throw string("Invalid response from server");
                         }
                     }
                     cout << to_print;
-                } else if (response_arguments[1] == "ERR") {
+                } else if (response_arguments.at(1) == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
                     throw string("Invalid response from server");
@@ -302,31 +302,31 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(response, response_arguments); // separate by spaces
-                if (response_arguments[0] == "ERR") {
+                if (response_arguments.at(0) == "ERR") {
                     throw string("Error from server side");
                 } 
-                else if (response_arguments[0] != "RLS" || response.at(3) != ' ') {
+                else if (response_arguments.at(0) != "RLS" || response.at(3) != ' ') {
                     throw string("Invalid response from server");
                 }
 
-                if (response_arguments[1] == "NOK") {
+                if (response_arguments.at(1) == "NOK") {
                     cout << "No auctions have been started yet" << endl;
-                } else if (response_arguments[1] == "OK") {
+                } else if (response_arguments.at(1) == "OK") {
                     string to_print; // tmp string that stores the information, in case of a syntax error by the response
                     to_print += "Listing all auctions:\n";
                     for (size_t i = 2; i < response_arguments.size() - 1; i += 2) {
                         // Iterate over the response two arguments by two, corresponding to the pair AID(i) Status(i+1)
-                        to_print += "Auction " + response_arguments[i] + " ";
-                        if (response_arguments[i+1] == "0") {
+                        to_print += "Auction " + response_arguments.at(i) + " ";
+                        if (response_arguments.at(i+1) == "0") {
                             to_print += "Ended\n";
-                        } else if (response_arguments[i+1] == "1") {
+                        } else if (response_arguments.at(i+1) == "1") {
                             to_print += "Ongoing\n";
                         } else {
                             throw string("Invalid response from server");
                         }
                     }
                     cout << to_print;
-                } else if (response_arguments[1] == "ERR") {
+                } else if (response_arguments.at(1) == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
                     throw string("Invalid response from server");
@@ -334,7 +334,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 break;
             }
             case SHOW_RECORD: {
-                string aid = arguments[1];
+                string aid = arguments.at(1);
                 // check argument syntax
                 checkAID(aid);
 
