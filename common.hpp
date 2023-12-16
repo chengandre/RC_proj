@@ -28,10 +28,6 @@ void checkAID(string &aid);
 
 void checkName(string &name);
 
-void checkPrice(string &price);
-
-void checkTime(string &time);
-
 void checkStartValue(string& svalue);
 
 void checkDuration(string& duration);
@@ -43,8 +39,6 @@ void checkFileSize(string &fname);
 void checkDate(string &date);
 
 void checkHour(string &hour);
-
-void printVectorString(vector<string> &target);
 
 string getSubString(string const&target, size_t start, size_t size);
 

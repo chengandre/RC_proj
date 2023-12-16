@@ -1407,7 +1407,7 @@ int main(int argc, char *argv[]) {
     sharedAID = (SharedAID*) shmat(shmid, (void*)0, 0);
 
     // Initiates the shared variable
-    sharedAID->AID = 1;
+    sharedAID->AID = 1; // starts with 1 because tejo does this
     sem_init(&sharedAID->sem, 1, 1);
 
     // Initialize them as -1 so that they dont get closed twice
