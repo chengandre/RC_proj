@@ -65,6 +65,7 @@ void sendReceiveUDPRequest(string &message, int size, string &response) {
     checkUDPSyntax(response); // checks the overall syntax of the response (double spaces/ ends in '\n')
 }
 
+
 // Creates the request, sends the request, receives a response, parses the response
 void handleUDPRequest(int request, vector<string> arguments) {
     string response, message; // response/message to/from server
@@ -79,6 +80,10 @@ void handleUDPRequest(int request, vector<string> arguments) {
                 //check arguments syntax
                 checkUID(uid);
                 checkPasswordSyntax(pass);
+
+                if (loggedIn) {
+                    throw string("Already logged in with uid " + userInfo.at(0) + " and pass " + userInfo.at(1));
+                }
 
                 message = "LIN " + uid + " " + pass + "\n"; // request to server
                 sendReceiveUDPRequest(message, message.size(), response); // send the request and get the response
@@ -459,6 +464,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
     }
 }
 
+
 // Receives a file from the TCP socket straight into a file (128 bytes at a time)
 int receiveTCPfile(int fd, int size, string &fname) {
     int total_received = 0; // number of bytes received
@@ -483,6 +489,7 @@ int receiveTCPfile(int fd, int size, string &fname) {
     fout.close();
     return total_received;
 }
+
 
 // Creates/Closes TCP connection, sends a request, receives and parses the response
 void handleTCPRequest(int request, vector<string> input_arguments) {
@@ -733,6 +740,7 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
     return;
 }
 
+
 int main(int argc, char *argv[]) {
 
     // ignore signal from writing to socket
@@ -799,14 +807,13 @@ int main(int argc, char *argv[]) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    cout << hostname << '\n';
-    cout << port << '\n';
-
     int errcode = getaddrinfo(hostname.c_str(), port.c_str(), &hints, &res);
     if (errcode != 0) {
         cout << gai_strerror(errcode);
         exit(EXIT_FAILURE);
     }
+
+    cout << "Connected to: " << hostname << ":" << port << endl;
     
     string input;
     vector<string> input_arguments;
