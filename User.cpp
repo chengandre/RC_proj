@@ -47,36 +47,22 @@ int parseCommand(string &command) {
 
 // Sends a request to server and receives its response
 void sendReceiveUDPRequest(string &message, int size, string &response) {
-    //int total_received = 0;
-    int total_sent = 0;
+
     int n;
-    //cout << "[LOG]: Sending UDP request" << endl;
-    while (total_sent < size) {
-        n = sendto(fd_udp, message.c_str() + total_sent, size - total_sent, 0, res->ai_addr, res->ai_addrlen);
-        if (n == -1) {
-            throw string("Error sending message through UDP socket");
-        }
-        total_sent += n;
+    n = sendto(fd_udp, message.c_str(), size, 0, res->ai_addr, res->ai_addrlen);
+    if (n == -1) {
+        throw string("Error sending message through UDP socket");
     }
-    //cout << "[LOG]: Sent UDP request" << endl;
 
     addrlen = sizeof(addr);
     response.clear();
-    n = BUFFERSIZE;
-    //cout << "[LOG]: Receiving UDP response" << endl;
-    while (n == BUFFERSIZE) {
-        n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
-        if (n == -1) {
-            throw string("Error receiving message through UDP socket");
-        }
-        concatenateString(response, buffer, n);
-        //total_received += n;
+    n = recvfrom(fd_udp, buffer, BUFFERSIZE, 0, (struct sockaddr*) &addr, &addrlen);
+    if (n == -1) {
+        throw string("Error receiving message through UDP socket");
     }
+    concatenateString(response, buffer, n);
 
     checkUDPSyntax(response);
-    //cout << "[LOG]: Received UDP response of size " <<  response.size() << endl;
-
-    // return total_received;
 }
 
 void handleUDPRequest(int request, vector<string> arguments) {
