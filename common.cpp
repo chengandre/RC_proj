@@ -45,8 +45,12 @@ void checkAID(string &aid) {
     }
 }
 
+bool isalnumminus(char c) {
+    return isalnum(c) || c == '_' || c == '\u002d';
+}
+
 void checkName(string &name) {
-    if ((all_of(name.begin(), name.end(), ::isalnum) && name.length() <= 10) == 0) {
+    if ((all_of(name.begin(), name.end(), ::isalnumminus) && name.length() <= 10) == 0) {
         throw string("Auction name syntax error");
     }
 }
@@ -76,7 +80,7 @@ void checkDuration(string& duration) {
 }
 
 bool isalnumplus(char c) {
-    return isalnum(c) || c == '.' || c == '_' || c == '-';
+    return isalnum(c) || c == '.' || c == '_' || c == '\u002d';
 }
 
 void checkFileName(string &fname) {
@@ -195,7 +199,7 @@ int sendTCPmessage(int fd, string &message, int size) {
     while (total_sent < size) { // while message has not been sent totally
         n = write(fd, message.c_str() + total_sent, size - total_sent);
         if (n == -1) {
-            throw string("Error while sending TCP message");
+            throw string("Error while sending TCP message, probably due to syntax error");
         }
         total_sent += n;
     }
@@ -209,7 +213,7 @@ int sendTCPmessage(int fd, char message[], int size) {
     while (total_sent < size) { // while message has not been sent totally
         n = write(fd, message + total_sent, size - total_sent);
         if (n == -1) {
-            throw string("Error while sending TCP message");
+            throw string("Error while sending TCP message, probably due to syntax error");
         }
         total_sent += n;
     }
@@ -231,7 +235,7 @@ int sendTCPfile(int fd, string &fpath) {
         n_read = fin.gcount();
         n_sent = sendTCPmessage(fd, tmp, n_read);
         if (n_sent != n_read) {
-            throw string("TCP send error");
+            throw string("TCP send error, probably due to syntax error");
         }
         total_sent += n_sent;
     }

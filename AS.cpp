@@ -191,7 +191,7 @@ bool auctionEnded(string const &aid) {
 
 
 // Creates the end file for an auction
-void endAuction(string const &aid, int const &itime) {
+void endAuction(string const &aid, int &itime, int const &iduration) {
     // path of the End file
     string endTxt = "AUCTIONS/" + aid + "/END_" + aid + ".txt";
     ofstream fout(endTxt); // creates the file
@@ -207,7 +207,7 @@ void endAuction(string const &aid, int const &itime) {
             end_time->tm_hour , end_time->tm_min , end_time->tm_sec);
     
     string content(time_str); // Date and Hour
-    content += " " + to_string(itime); // Duration
+    content += " " + to_string(iduration); // Duration
     fout << content; // Writes the content to the file
     fout.close();
 }
@@ -280,9 +280,10 @@ bool checkAuctionDuration(string const &aid) {
     int istart = stoi(start_fulltime); // Start time
     int icurrent = stoi(current_fulltime); // Current time
 
-    if (icurrent > istart + iduration) {
+    if (icurrent >= istart + iduration) {
         // Past duration and auction has not been closed yet
-        endAuction(aid, iduration); // ends the auction
+        int end_time = istart + iduration;
+        endAuction(aid, end_time, iduration); // ends the auction
         return false;
     }
     return true;
@@ -1080,7 +1081,7 @@ void handleTCPRequest(int &fd) {
                     response = "\n";
                     sendTCPmessage(fd, response, response.size());
 
-                    to_print = "[LOG]: " + to_string(getpid()) + " prepared asset to send asset " + fname + " of size " + fsize_str + " bytes";
+                    to_print = "[LOG]: " + to_string(getpid()) + " prepared asset to send asset " + fname + " of size " + fsize_str + " bytes\n";
                     cout << to_print;
                     return;
                 }
