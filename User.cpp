@@ -345,25 +345,25 @@ void handleUDPRequest(int request, vector<string> arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(response, response_arguments); // separate by spaces
-                if (response_arguments[0] == "ERR") {
+                if (response_arguments.at(0) == "ERR") {
                     throw string("Error from server side");
                 } 
-                else if (response_arguments[0] != "RRC" || response.at(3) != ' ') {
+                else if (response_arguments.at(0) != "RRC" || response.at(3) != ' ') {
                     throw string("Invalid response from server");
                 }
 
-                if (response_arguments[1] == "NOK") {
+                if (response_arguments.at(1) == "NOK") {
                     cout << "No auction has such AID" << endl;
-                } else if (response_arguments[1] == "OK") {
+                } else if (response_arguments.at(1) == "OK") {
                     string to_print; // tmp string that stores the information, in case of a syntax error by the response
 
-                    string uid = response_arguments[2];
-                    string auction_name = response_arguments[3];
-                    string fname = response_arguments[4];
-                    string start_value = response_arguments[5];
-                    string date = response_arguments[6];
-                    string hour = response_arguments[7];
-                    string duration = response_arguments[8];
+                    string uid = response_arguments.at(2);
+                    string auction_name = response_arguments.at(3);
+                    string fname = response_arguments.at(4);
+                    string start_value = response_arguments.at(5);
+                    string date = response_arguments.at(6);
+                    string hour = response_arguments.at(7);
+                    string duration = response_arguments.at(8);
                     // check response arguments syntax
                     checkUID(uid);
                     checkName(auction_name);
@@ -443,7 +443,7 @@ void handleUDPRequest(int request, vector<string> arguments) {
                         }
                     }
                     cout << to_print; // No syntax errors, print everything
-                } else if (response_arguments[1] == "ERR") {
+                } else if (response_arguments.at(1) == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
                     throw string("Invalid response from server");
@@ -534,10 +534,10 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
             case OPEN: {
                 if (!loggedIn) throw string("User not logged in"); // User has to be logged in
 
-                string auction_name = input_arguments[1];
-                string fpath = input_arguments[2]; // full path of the asset
-                string start_value = input_arguments[3];
-                string duration = input_arguments[4];
+                string auction_name = input_arguments.at(1);
+                string fpath = input_arguments.at(2); // full path of the asset
+                string start_value = input_arguments.at(3);
+                string duration = input_arguments.at(4);
 
                 filesystem::path p(fpath);
                 string fname = p.filename(); // asset file name
@@ -547,7 +547,7 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                 checkStartValue(start_value);
                 checkDuration(duration);
 
-                message = "OPA " + userInfo[0] + " " + userInfo[1] + " " + auction_name + " ";
+                message = "OPA " + userInfo.at(0) + " " + userInfo.at(1) + " " + auction_name + " ";
                 message += start_value + " " + duration + " " + fname + " ";
                 message += to_string(filesystem::file_size(fpath)) + " ";
                 sendTCPmessage(fd_tcp, message, message.size()); // send the first part of the request
@@ -563,22 +563,22 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(message, message_arguments);
-                if (message_arguments[0] == "ERR") {
+                if (message_arguments.at(0) == "ERR") {
                     throw string("Error from server side, probably it couldn't identify the request");
                 }
-                else if (message_arguments[0] != "ROA") {
+                else if (message_arguments.at(0) != "ROA") {
                     throw string("Invalid response from server");
                 }
 
                 receiveTCPend(fd_tcp, message); // the last byte has to be '\n' otherwise read will throw an error
                 parseInput(message, message_arguments); // separate by spaces (should be Status AID)
-                if (message_arguments[0] == "NOK") {
+                if (message_arguments.at(0) == "NOK") {
                     cout << "Auction could not be started" << endl;
-                } else if (message_arguments[0] == "NLG") {
+                } else if (message_arguments.at(0) == "NLG") {
                     cout << "User not logged in" << endl;
-                } else if (message_arguments[0] == "OK") {
-                    cout << "Auction created with AID " << message_arguments[1] << endl;
-                } else if (message_arguments[0] == "ERR") {
+                } else if (message_arguments.at(0) == "OK") {
+                    cout << "Auction created with AID " << message_arguments.at(1) << endl;
+                } else if (message_arguments.at(0) == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
                     throw string("Invalid response from server");
@@ -588,11 +588,11 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
             case CLOSE: {
                 if (!loggedIn) throw string("User not logged in"); // User has to be logged in
 
-                string aid = input_arguments[1];
+                string aid = input_arguments.at(1);
                 // check syntax
                 checkAID(aid);
 
-                message = "CLS " + userInfo[0] + " " + userInfo[1] + " " + aid + "\n"; // request message
+                message = "CLS " + userInfo.at(0) + " " + userInfo.at(1) + " " + aid + "\n"; // request message
 
                 sendTCPmessage(fd_tcp, message, message.size());
 
@@ -601,10 +601,10 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(message, message_arguments);
-                if (message_arguments[0] == "ERR") {
+                if (message_arguments.at(0) == "ERR") {
                     throw string("Error from server side, probably it couldn't identify the request");
                 }
-                else if (message_arguments[0] != "RCL") {
+                else if (message_arguments.at(0) != "RCL") {
                     throw string("Invalid response from server");
                 }
 
@@ -613,19 +613,19 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(message, message_arguments);
-                if (message_arguments[0] == "OK") {
+                if (message_arguments.at(0) == "OK") {
                     cout << "Auction created by the user has now been closed" << endl;
-                } else if (message_arguments[0] == "NLG") {
+                } else if (message_arguments.at(0) == "NLG") {
                     cout << "User not logged in" << endl;
-                } else if (message_arguments[0] == "EAU") {
+                } else if (message_arguments.at(0) == "EAU") {
                     cout << "No auction with such AID" << endl;
-                } else if (message_arguments[0] == "EOW") {
+                } else if (message_arguments.at(0) == "EOW") {
                     cout << "User not the owner of auction" << endl;
-                } else if (message_arguments[0] == "END") {
+                } else if (message_arguments.at(0) == "END") {
                     cout << "Auction has already been closed" << endl;
-                } else if (message_arguments[0] == "NOK") {
+                } else if (message_arguments.at(0) == "NOK") {
                     cout << "Wrong password" << endl;
-                } else if (message_arguments[0] == "ERR") {
+                } else if (message_arguments.at(0) == "ERR") {
                     cout << "Error on server side" << endl;
                 } else {
                     throw string("Invalid response from server");
@@ -633,7 +633,7 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                 break;
             }
             case SHOW_ASSET: {
-                string aid = input_arguments[1];
+                string aid = input_arguments.at(1);
                 checkAID(aid); // check syntax
 
                 message =  "SAS " + aid + "\n"; // request message
@@ -644,27 +644,27 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                     throw string("Invalid response from server");
                 }
                 parseInput(message, message_arguments);
-                if (message_arguments[0] == "ERR") {
+                if (message_arguments.at(0) == "ERR") {
                     throw string("Error from server side, probably it couldn't identify the request");
                 }
-                else if (message_arguments[0] != "RSA") {
+                else if (message_arguments.at(0) != "RSA") {
                     throw string("Invalid response from server");
                 }
 
                 n = receiveTCPsize(fd_tcp, 3, message); // receive 3 bytes which includes Status
                 parseInput(message, message_arguments);
-                if (message_arguments[0] == "NOK") {
+                if (message_arguments.at(0) == "NOK") {
                     n = receiveTCPend(fd_tcp, message);
                     if (n != 0) { // '\n' should be the last char, so not counting it we should read 0 bytes
                         throw string("Invalid response from server");
                     }
                     cout << "No auction with such AID" << endl;
-                } else if (message_arguments[0] == "OK") {
+                } else if (message_arguments.at(0) == "OK") {
                     n = receiveTCPspace(fd_tcp, 2, message); // receive two arguments, corresponding to filename and filesize
                     parseInput(message, message_arguments); // separate them by spaces
 
-                    string fname = message_arguments[0];
-                    string fsize_str = message_arguments[1];
+                    string fname = message_arguments.at(0);
+                    string fsize_str = message_arguments.at(1);
                     // check syntax
                     checkFileName(fname);
                     checkFileSize(fsize_str);
@@ -687,13 +687,13 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
             case BID: {
                 if (!loggedIn) throw string("User not logged in"); // User has to be logged in
 
-                string aid = input_arguments[1];
-                string value = input_arguments[2];
+                string aid = input_arguments.at(1);
+                string value = input_arguments.at(2);
                 // check syntax
                 checkAID(aid);
                 checkStartValue(value);
 
-                message = "BID " + userInfo[0] + " " + userInfo[1] + " " + aid + " " + value + "\n"; // request message
+                message = "BID " + userInfo.at(0) + " " + userInfo.at(1) + " " + aid + " " + value + "\n"; // request message
                 sendTCPmessage(fd_tcp, message, message.size());
 
                 n = receiveTCPend(fd_tcp, message); // receive the whole response
@@ -705,17 +705,17 @@ void handleTCPRequest(int request, vector<string> input_arguments) {
                 }
 
                 parseInput(message, message_arguments); // separate by spaces
-                if (message_arguments[1] == "NOK") {
+                if (message_arguments.at(1) == "NOK") {
                     cout << "Given auction doesn't exist/ is not active/ wrong password" << endl;
-                } else if (message_arguments[1] == "ACC") {
+                } else if (message_arguments.at(1) == "ACC") {
                     cout << "Bid has been accepted" << endl;
-                } else if (message_arguments[1] == "REF") {
+                } else if (message_arguments.at(1) == "REF") {
                     cout << "Bid has been refused" << endl;
-                } else if (message_arguments[1] == "ILG") {
+                } else if (message_arguments.at(1) == "ILG") {
                     cout << "Cannot bid in an auction hosted by the user" << endl;
-                } else if (message_arguments[1] == "ERR") {
+                } else if (message_arguments.at(1) == "ERR") {
                     cout << "Error on server side" << endl;
-                } else if (message_arguments[1] == "NLG") {
+                } else if (message_arguments.at(1) == "NLG") {
                     cout << "User not logged in" << endl;
                 } else {
                     throw string("Invalid response from server");
@@ -823,7 +823,7 @@ int main(int argc, char *argv[]) {
 
         parseInput(input, input_arguments); // separate by spaces
 
-        int request = parseCommand(input_arguments[0]); // get the request type
+        int request = parseCommand(input_arguments.at(0)); // get the request type
         if (request > 0 && request < 8) {
             // UDP request
             handleUDPRequest(request, input_arguments);
@@ -836,8 +836,8 @@ int main(int argc, char *argv[]) {
                 // if logged in, logout first
                 input_arguments.clear();
                 input_arguments.push_back(" ");
-                input_arguments.push_back(userInfo[0]);
-                input_arguments.push_back(userInfo[1]);
+                input_arguments.push_back(userInfo.at(0));
+                input_arguments.push_back(userInfo.at(1));
                 handleUDPRequest(LOGOUT, input_arguments);
             }
             return EXIT_SUCCESS; 
