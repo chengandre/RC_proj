@@ -48,38 +48,7 @@ bool exists(string& name) {
 }
 
 
-// Removes a single file, throwing an error if unsuccessful
-void removeFile(string &path) {
-    error_code ec;
-    int ret = filesystem::remove(path, ec);
 
-    if (!ec) { 
-        if (!ret) {
-            throw string("[IO ERROR]: File didn't exist\n");  
-        }
-    } 
-    else {  
-        string tmp = "[IO ERROR]: File " + path + " removed unsuccessful: " + to_string(ec.value()) + " " + ec.message() + "\n";
-        throw tmp;
-    }
-}
-
-
-// Removes a directory and all the files inside, throws an error if unsuccessful
-void removeDir(string &path) {
-    error_code ec;
-    
-    int ret = filesystem::remove_all(path, ec);
-    if (!ec) { 
-        if (!ret) {
-            throw string("[IO ERROR]: File didn't exist");  
-        }
-    } 
-    else {  
-        string tmp = "[IO ERROR]: File " + path + " removed unsuccessful: " + to_string(ec.value()) + " " + ec.message() + "\n";
-        throw tmp;
-    }
-}
 
 
 // Returns the request_code given string request

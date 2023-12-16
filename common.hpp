@@ -64,4 +64,8 @@ int receiveTCPspace(int fd, int size, string &request);
 
 int receiveTCPend(int fd, string &response);
 
+void removeFile(string &path);
+
+void removeDir(string &path);
+
 #endif
