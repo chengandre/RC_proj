@@ -874,6 +874,17 @@ void createStartAuctionText(vector<string> &arguments, string &aid) {
 }
 
 
+// checks if two given uids are the same
+bool compareUID(string &uid1, char uid2[]) {
+    for (int i = 0; i < 6; i++) {
+        if (uid1.at(i) != uid2[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
 // Checks if given user UID is auction AID's owner
 bool checkOwner(string &uid, string &aid) {
     string auctionDir = "AUCTIONS/" + aid;
@@ -887,7 +898,7 @@ bool checkOwner(string &uid, string &aid) {
     fin.read(tmp, 6); // read the first 6 bytes, which corresponds to the owners UID
     fin.close();
 
-    return strcmp(uid.c_str(), tmp); // matches them
+    return compareUID(uid, tmp); // matches them
 }
 
 
@@ -1169,7 +1180,7 @@ void handleTCPRequest(int &fd) {
                         int imin_bid = max(istart_value, ihighest); // minimum bid_value accepted
                         int ivalue = stoi(value);
                         if (ivalue <= imin_bid) { // checks if given bid is higher than the minimum accepted
-                            cout << "[LOG]: On bid, new bid is not higher than the current highest bid" << endl;
+                            cout << "[LOG]: New bid " << ivalue << " is not higher than the current highest bid " << ihighest << endl;
                             response += "REF\n";
                             break;
                         }
@@ -1178,7 +1189,7 @@ void handleTCPRequest(int &fd) {
                         int start_time = stoi(start_content_arguments.at(7));
 
                         if (auctionOwner == uid) { // checks if the given user is the auction's owner
-                            cout << "[LOG]: On bid, bid on own auction" << endl;
+                            cout << "[LOG]: User cannot bid on own auction" << endl;
                             response += "ILG\n";
                             break;
                         }
