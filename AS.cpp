@@ -1262,7 +1262,7 @@ void startTCP() {
         terminateServer(EXIT_FAILURE);
     }
     if (verbose) cout << "[LOG]: TCP Bind successfully" << endl;
-
+    // Listen on TCP socket with SOMAXCONN max connections
     if (listen(fd_tcp, SOMAXCONN) == -1) {
         cout << "[LOG]: TCP listen error" << endl;
         terminateServer(EXIT_FAILURE);
@@ -1368,13 +1368,13 @@ int main(int argc, char *argv[]) {
     }
 
     switch(argc) {
-        case 1:
+        case 1: // Received ./AS
             port = DEFAULT_PORT;
             break;
-        case 3:
+        case 3: // Received ./AS -p ASport
             port = argv[2];
             break;
-        case 4:
+        case 4: // Received ./AS -p ASport -v
             if (strcmp(argv[1], "-p") == 0) {
                 port = argv[2];
             }

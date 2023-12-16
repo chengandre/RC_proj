@@ -1,7 +1,9 @@
 #include "common.hpp"
 
 using namespace std;
+// Parsing Functions
 
+// Store space split components in vector for c++ object string
 void parseInput(string &input, vector<string> &inputs) {
     inputs.clear();
 
@@ -12,7 +14,7 @@ void parseInput(string &input, vector<string> &inputs) {
         inputs.push_back(tmp);
     }
 }
-
+// Store space split components in vector for c strings (char *)
 void parseInput(char *input, vector<string> &inputs) {
     inputs.clear();
 
@@ -23,6 +25,15 @@ void parseInput(char *input, vector<string> &inputs) {
         inputs.push_back(tmp);
     }
 }
+void concatenateString(string &target, char item[], int size) {
+    for (int i = 0; i < size; i++) {
+        target.push_back(item[i]);
+    }
+}
+
+
+// Checking functions to verify input format
+
 
 void checkUID(string &uid) {
     // primeiro digito tem que ser um (foi dito no slack)
@@ -33,7 +44,7 @@ void checkUID(string &uid) {
 }
 
 void checkPasswordSyntax(string &pw) {
-    // 8 numeros ou letras
+    // 8 numbers or letters
     if ((all_of(pw.begin(), pw.end(), ::isalnum) && pw.length() == 8) == 0) {
         throw string("PASSWORD Syntax error");
     }
@@ -157,12 +168,6 @@ string getSubString(string const &target, size_t start, size_t size) {
     }
 
     return tmp;
-}
-
-void concatenateString(string &target, char item[], int size) {
-    for (int i = 0; i < size; i++) {
-        target.push_back(item[i]);
-    }
 }
 
 void checkUDPSyntax(string request) {
